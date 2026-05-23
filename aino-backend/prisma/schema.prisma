@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  Admin
+  Owner
+  Agent
+}
+
+enum UnitStatus {
+  Available
+  Booked
+  Sold
+}
+
+enum CommissionStatus {
+  Unpaid
+  Paid
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  phone        String    @unique
+  email        String?   @unique
+  password     String?
+  role         UserRole
+  is_approved  Boolean   @default(false)
+  created_at   DateTime  @default(now())
+
+  projects         Project[]
+  booked_units     Unit[]
+  leads_handled    Lead[]
+  bookings         Booking[]
+  commissions      Commission[]
+  notifications    Notification[]
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  user_id    String
+  title      String
+  body       String
+  type       String
+  data       Json?
+  is_read    Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  user       User     @relation(fields: [user_id], references: [id])
+}
+
+model OtpLog {
+  id          String   @id @default(uuid())
+  phone       String
+  otp_code    String
+  expires_at  DateTime
+  is_verified Boolean  @default(false)
+}
+
+model Project {
+  id                String   @id @default(uuid())
+  project_name      String
+  project_type      String
+  layout_image_url  String?
+  owner_id          String?
+  location          String
+  rera_number       String?
+  config_attributes Json?
+  documents         Json?
+  is_published      Boolean  @default(false)
+  created_at        DateTime @default(now())
+
+  owner             User?    @relation(fields: [owner_id], references: [id])
+  units             Unit[]
+  leads             Lead[]
+}
+
+model Unit {
+  id                 String     @id @default(uuid())
+  project_id         String
+  unit_number        String
+  sq_ft              Float
+  price              Float
+  facing             String?
+  road_width         Float?
+  status             UnitStatus @default(Available)
+  coordinates        Json?
+  attributes         Json?
+  booked_by_agent_id String?
+
+  project            Project    @relation(fields: [project_id], references: [id])
+  booked_by_agent    User?      @relation(fields: [booked_by_agent_id], references: [id])
+  bookings           Booking[]
+  commissions        Commission[]
+
+  @@unique([project_id, unit_number])
+}
+
+model Lead {
+  id               String   @id @default(uuid())
+  share_token      String   @unique
+  project_id       String
+  agent_id         String
+  customer_phone   String?
+  customer_name    String?
+  first_click_at   DateTime?
+  is_locked        Boolean  @default(true)
+
+  project          Project  @relation(fields: [project_id], references: [id])
+  agent            User     @relation(fields: [agent_id], references: [id])
+}
+
+model Booking {
+  id               String   @id @default(uuid())
+  unit_id          String
+  agent_id         String
+  customer_name    String
+  customer_phone   String
+  booking_date     DateTime @default(now())
+
+  unit             Unit     @relation(fields: [unit_id], references: [id])
+  agent            User     @relation(fields: [agent_id], references: [id])
+}
+
+model Commission {
+  id               String           @id @default(uuid())
+  unit_id          String
+  agent_id         String
+  amount           Float
+  status           CommissionStatus @default(Unpaid)
+  settled_at       DateTime?
+
+  unit             Unit     @relation(fields: [unit_id], references: [id])
+  agent            User     @relation(fields: [agent_id], references: [id])
+}

@@ -1,0 +1,13 @@
+node_modules
+
+# Environment variables
+.env
+.env.local
+aino-mobile/.env.local
+aino-web/.env.local
+
+# Firebase service account — never commit this
+*firebase-adminsdk*.json
+
+# Prisma generated client
+aino-backend/src/generated/prisma

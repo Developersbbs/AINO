@@ -1,0 +1,4 @@
+{
+  "/api/track/[shareToken]/route": "app/api/track/[shareToken]/route.js",
+  "/book/[shareToken]/page": "app/book/[shareToken]/page.js"
+}

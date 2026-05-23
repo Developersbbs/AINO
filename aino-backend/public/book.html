@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AINO – Plot Map</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:          #1A2744;
+      --navy-mid:      #243256;
+      --navy-light:    #2E3F6E;
+      --gold:          #C9A84C;
+      --gold-light:    #D4BA6E;
+      --avail-bg:      #DCFCE7;
+      --avail-border:  #86EFAC;
+      --avail-text:    #15803D;
+      --booked-bg:     #FEF9C3;
+      --booked-border: #FDE047;
+      --booked-text:   #A16207;
+      --sold-bg:       #FFE4E6;
+      --sold-border:   #FCA5A5;
+      --sold-text:     #BE123C;
+      --bg:            #F3F4F6;
+      --surface:       #FFFFFF;
+      --text-1:        #111827;
+      --text-2:        #6B7280;
+      --border:        #E5E7EB;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0D1526;
+      display: flex;
+      justify-content: center;
+    }
+
+    .phone {
+      width: 100%;
+      max-width: 430px;
+      min-height: 100dvh;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Status Bar ────────────────────────────────── */
+    .status-bar {
+      background: var(--navy);
+      padding: 14px 20px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: white;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .sb-icons { display: flex; align-items: center; gap: 5px; }
+    .sb-icons svg { width: 15px; height: 15px; fill: white; }
+
+    /* ── Header ───────────────────────────────────── */
+    .header {
+      background: var(--navy);
+      padding: 12px 16px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .header-left { display: flex; align-items: flex-end; gap: 10px; }
+    .back-btn {
+      width: 34px; height: 34px;
+      background: rgba(255,255,255,0.12);
+      border: none; border-radius: 10px;
+      color: white; font-size: 18px; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0;
+    }
+    .header-text .subtitle {
+      color: rgba(255,255,255,0.55);
+      font-size: 11px; font-weight: 500;
+      margin-bottom: 3px; letter-spacing: 0.3px;
+    }
+    .header-text h1 {
+      color: #FFFFFF;
+      font-size: 22px; font-weight: 800;
+      letter-spacing: -0.4px;
+    }
+    .filter-btn {
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 22px;
+      padding: 8px 14px;
+      color: white; font-size: 12px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+      font-family: inherit; margin-bottom: 2px;
+      transition: background 0.2s;
+    }
+    .filter-btn:hover { background: rgba(255,255,255,0.18); }
+    .filter-btn svg { width: 14px; height: 14px; stroke: white; fill: none; }
+
+    /* ── Legend Bar ───────────────────────────────── */
+    .legend {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex; gap: 14px; align-items: center;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+    }
+    .legend::-webkit-scrollbar { display: none; }
+    .leg-item {
+      display: flex; align-items: center; gap: 6px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .leg-dot {
+      width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
+    }
+    .leg-dot.a { background: var(--avail-bg); border: 1.5px solid var(--avail-border); }
+    .leg-dot.b { background: var(--booked-bg); border: 1.5px solid var(--booked-border); }
+    .leg-dot.s { background: var(--sold-bg);   border: 1.5px solid var(--sold-border); }
+    .leg-label { font-size: 12px; font-weight: 500; color: var(--text-2); }
+    .leg-label b { font-weight: 700; color: var(--text-1); }
+
+    /* ── Scrollable Content ───────────────────────── */
+    .content {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding-bottom: 80px;
+    }
+
+    /* ── Grid Section ─────────────────────────────── */
+    .grid-section {
+      background: var(--surface);
+      padding: 16px;
+      margin-bottom: 8px;
+    }
+    .grid-wrapper {
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+    }
+    .grid-wrapper::-webkit-scrollbar { display: none; }
+    .grid-table {
+      border-collapse: separate;
+      border-spacing: 5px;
+      min-width: max-content;
+    }
+    .col-header {
+      font-size: 10px; font-weight: 700;
+      color: var(--text-2); text-align: center;
+      padding: 0 4px 8px; letter-spacing: 0.8px;
+      min-width: 52px;
+    }
+    .row-label {
+      font-size: 12px; font-weight: 800;
+      color: var(--navy); padding-right: 8px;
+      text-align: right; vertical-align: middle;
+      white-space: nowrap;
+    }
+    .plot-cell {
+      width: 52px; height: 46px;
+      border-radius: 9px;
+      font-size: 11px; font-weight: 700;
+      text-align: center; vertical-align: middle;
+      cursor: pointer;
+      transition: transform 0.13s, box-shadow 0.13s;
+      user-select: none;
+      border: 1.5px solid transparent;
+      line-height: 1.2;
+    }
+    .plot-cell .cell-num { display: block; font-size: 10px; opacity: 0.7; }
+    .plot-cell.available {
+      background: var(--avail-bg); border-color: var(--avail-border);
+      color: var(--avail-text);
+    }
+    .plot-cell.available:hover, .plot-cell.available:active {
+      transform: scale(1.07);
+      box-shadow: 0 4px 14px rgba(21,128,61,0.25);
+    }
+    .plot-cell.booked {
+      background: var(--booked-bg); border-color: var(--booked-border);
+      color: var(--booked-text); cursor: default;
+    }
+    .plot-cell.sold {
+      background: var(--sold-bg); border-color: var(--sold-border);
+      color: var(--sold-text); cursor: default;
+    }
+    .plot-cell.hidden-cell {
+      background: transparent; border: none; cursor: default; pointer-events: none;
+    }
+
+    /* ── Block Summary ────────────────────────────── */
+    .summary-section {
+      background: var(--surface);
+      padding: 16px;
+    }
+    .section-title {
+      font-size: 15px; font-weight: 700;
+      color: var(--text-1); margin-bottom: 14px;
+    }
+    .summary-table { width: 100%; border-collapse: collapse; }
+    .summary-table th {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.6px;
+      color: var(--text-2); text-align: left;
+      padding: 6px 8px; border-bottom: 2px solid var(--border);
+    }
+    .summary-table th:not(:first-child) { text-align: right; }
+    .summary-table td {
+      font-size: 14px; font-weight: 500;
+      color: var(--text-1); padding: 11px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .summary-table td:not(:first-child) { text-align: right; }
+    .summary-table td.block-label { font-weight: 800; color: var(--navy); }
+    .summary-table td.avail { color: var(--avail-text); font-weight: 700; }
+    .summary-table td.booked { color: var(--booked-text); font-weight: 700; }
+    .summary-table tr:last-child td { border-bottom: none; }
+
+    /* ── Bottom Nav ───────────────────────────────── */
+    .bottom-nav {
+      position: fixed; bottom: 0;
+      left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 430px;
+      background: var(--navy);
+      display: flex; align-items: stretch;
+      padding-bottom: max(6px, env(safe-area-inset-bottom));
+      z-index: 100;
+      box-shadow: 0 -2px 20px rgba(0,0,0,0.3);
+    }
+    .nav-item {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 4px;
+      background: none; border: none; cursor: pointer;
+      padding: 10px 0;
+      color: rgba(255,255,255,0.4);
+      font-size: 10px; font-weight: 600;
+      font-family: inherit;
+      transition: color 0.2s;
+      letter-spacing: 0.3px;
+    }
+    .nav-item.active { color: var(--gold); }
+    .nav-item svg { width: 21px; height: 21px; }
+
+    /* ── Loading / Error ──────────────────────────── */
+    .loading-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 14px;
+      color: var(--text-2); padding: 40px;
+    }
+    .spinner {
+      width: 38px; height: 38px;
+      border: 3px solid var(--border);
+      border-top-color: var(--navy);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-icon { font-size: 40px; }
+    .loading-state p { font-size: 14px; text-align: center; line-height: 1.6; }
+
+    /* ── Overlay ──────────────────────────────────── */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.52);
+      z-index: 200; opacity: 0; pointer-events: none;
+      transition: opacity 0.28s;
+    }
+    .overlay.show { opacity: 1; pointer-events: all; }
+
+    /* ── Plot Detail Bottom Sheet ─────────────────── */
+    .bottom-sheet {
+      position: fixed; bottom: 0;
+      left: 50%; transform: translateX(-50%) translateY(100%);
+      width: 100%; max-width: 430px;
+      background: var(--surface);
+      border-radius: 22px 22px 0 0;
+      z-index: 201;
+      transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+      max-height: 90dvh; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .bottom-sheet.show { transform: translateX(-50%) translateY(0); }
+    .sheet-handle {
+      width: 38px; height: 4px; background: #D1D5DB;
+      border-radius: 2px; margin: 12px auto 0;
+    }
+    .sheet-body { padding: 16px 20px max(24px, env(safe-area-inset-bottom)); }
+
+    .plot-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 18px;
+    }
+    .plot-badge {
+      background: var(--navy);
+      color: white; font-size: 22px; font-weight: 800;
+      padding: 6px 18px; border-radius: 12px;
+      letter-spacing: -0.4px;
+    }
+    .status-pill {
+      padding: 6px 14px; border-radius: 20px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.3px;
+    }
+    .status-pill.available {
+      background: var(--avail-bg); color: var(--avail-text);
+      border: 1px solid var(--avail-border);
+    }
+
+    .detail-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px; margin-bottom: 18px;
+    }
+    .detail-card {
+      background: var(--bg); border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .detail-card .d-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+      color: var(--text-2); margin-bottom: 3px; text-transform: uppercase;
+    }
+    .detail-card .d-value {
+      font-size: 16px; font-weight: 700; color: var(--text-1);
+    }
+    .detail-card .d-unit {
+      font-size: 11px; font-weight: 500; color: var(--text-2);
+    }
+
+    .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+    .form-section h3 {
+      font-size: 14px; font-weight: 700; color: var(--text-1);
+      margin-bottom: 14px;
+    }
+    .field { margin-bottom: 12px; }
+    .field label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: var(--text-2); margin-bottom: 6px; letter-spacing: 0.3px;
+    }
+    .field input {
+      width: 100%; padding: 12px 14px;
+      border: 1.5px solid var(--border); border-radius: 10px;
+      font-size: 15px; font-family: inherit;
+      color: var(--text-1); background: var(--surface);
+      outline: none; transition: border-color 0.18s;
+    }
+    .field input:focus { border-color: var(--navy); }
+    .field input::placeholder { color: #9CA3AF; }
+
+    .book-btn {
+      width: 100%; margin-top: 6px;
+      background: var(--navy); color: white;
+      border: none; border-radius: 12px;
+      padding: 15px; font-size: 16px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .book-btn:hover { background: var(--navy-mid); }
+    .book-btn:active { transform: scale(0.98); }
+    .book-btn:disabled { background: #9CA3AF; cursor: not-allowed; transform: none; }
+    .book-btn svg { width: 18px; height: 18px; }
+
+    /* ── Filter Sheet ─────────────────────────────── */
+    .filter-sheet {
+      position: fixed; bottom: 0;
+      left: 50%; transform: translateX(-50%) translateY(100%);
+      width: 100%; max-width: 430px;
+      background: var(--surface);
+      border-radius: 22px 22px 0 0;
+      z-index: 201;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      padding: 0 20px max(28px, env(safe-area-inset-bottom));
+    }
+    .filter-sheet.show { transform: translateX(-50%) translateY(0); }
+    .filter-title {
+      font-size: 16px; font-weight: 700; color: var(--text-1);
+      padding: 20px 0 16px; border-bottom: 1px solid var(--border);
+      margin-bottom: 16px; display: flex; justify-content: space-between;
+    }
+    .filter-close {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-2); font-size: 14px; font-weight: 600;
+      font-family: inherit;
+    }
+    .filter-group-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.6px;
+      color: var(--text-2); margin-bottom: 10px; text-transform: uppercase;
+    }
+    .filter-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+    .filter-chip {
+      padding: 7px 14px; border-radius: 20px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border: 1.5px solid var(--border);
+      background: var(--surface); color: var(--text-2);
+      font-family: inherit; transition: all 0.18s;
+    }
+    .filter-chip.active {
+      border-color: var(--navy); background: var(--navy); color: white;
+    }
+    .filter-chip.avail.active  { background: var(--avail-bg); border-color: var(--avail-border); color: var(--avail-text); }
+    .filter-chip.booked.active { background: var(--booked-bg); border-color: var(--booked-border); color: var(--booked-text); }
+    .filter-chip.sold.active   { background: var(--sold-bg); border-color: var(--sold-border); color: var(--sold-text); }
+    .apply-filter-btn {
+      width: 100%; background: var(--navy); color: white;
+      border: none; border-radius: 12px; padding: 14px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      font-family: inherit;
+    }
+
+    /* ── Success / Confirmation ───────────────────── */
+    .confirm-screen {
+      display: none; flex-direction: column; align-items: center;
+      text-align: center; padding: 32px 20px max(24px, env(safe-area-inset-bottom));
+    }
+    .confirm-screen.show { display: flex; }
+    .confirm-icon {
+      width: 72px; height: 72px;
+      background: var(--avail-bg); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; margin-bottom: 16px;
+    }
+    .confirm-title { font-size: 20px; font-weight: 800; color: var(--text-1); margin-bottom: 8px; }
+    .confirm-sub { font-size: 14px; color: var(--text-2); line-height: 1.6; max-width: 280px; }
+    .confirm-plot {
+      margin: 18px 0; background: var(--bg); border-radius: 12px;
+      padding: 12px 20px; width: 100%;
+    }
+    .confirm-plot .cp-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 0;
+    }
+    .confirm-plot .cp-row:not(:last-child) { border-bottom: 1px solid var(--border); }
+    .confirm-plot .cp-label { font-size: 12px; color: var(--text-2); font-weight: 500; }
+    .confirm-plot .cp-val { font-size: 13px; color: var(--text-1); font-weight: 700; }
+    .confirm-close-btn {
+      width: 100%; background: var(--navy); color: white;
+      border: none; border-radius: 12px; padding: 14px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      font-family: inherit; margin-top: 4px;
+    }
+
+    /* ── Inactive tab views ───────────────────────── */
+    .tab-view { display: none; }
+    .tab-view.active { display: block; }
+    .tab-view.active-flex { display: flex; flex-direction: column; }
+
+    /* ── Project Details (Home tab) ───────────────── */
+    .detail-hero {
+      background: var(--navy);
+      padding: 20px 16px; color: white;
+    }
+    .detail-hero h2 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .detail-hero .loc { font-size: 13px; color: rgba(255,255,255,0.6); }
+    .detail-hero .badges { display: flex; gap: 8px; margin-top: 12px; }
+    .detail-hero .badge {
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .info-cards {
+      padding: 16px; display: grid;
+      grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+    .info-card {
+      background: var(--surface); border-radius: 12px;
+      padding: 14px; border: 1px solid var(--border);
+    }
+    .info-card .ic-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+      color: var(--text-2); margin-bottom: 4px; text-transform: uppercase;
+    }
+    .info-card .ic-value { font-size: 18px; font-weight: 800; color: var(--text-1); }
+    .info-card .ic-sub { font-size: 11px; color: var(--text-2); margin-top: 1px; }
+    .layout-img {
+      margin: 0 16px 16px;
+      border-radius: 12px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .layout-img img { width: 100%; display: block; }
+    .layout-placeholder {
+      background: var(--surface);
+      border: 2px dashed var(--border);
+      border-radius: 12px; margin: 0 16px 16px;
+      padding: 32px; text-align: center;
+      color: var(--text-2); font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+<div class="phone" id="app">
+
+  <!-- ── Loading ─────────────────────────────────── -->
+  <div class="loading-state" id="loadingState">
+    <div class="spinner"></div>
+    <p>Loading project…</p>
+  </div>
+
+  <!-- ── Error ───────────────────────────────────── -->
+  <div class="loading-state" id="errorState" style="display:none;">
+    <div class="error-icon">⚠️</div>
+    <p id="errorMsg">This link is invalid or has expired.</p>
+  </div>
+
+  <!-- ── Main UI ─────────────────────────────────── -->
+  <div id="mainUI" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span class="time" id="clockTime">9:41</span>
+      <div class="sb-icons">
+        <svg viewBox="0 0 24 24"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+        <svg viewBox="0 0 24 24"><rect x="2" y="7" width="16" height="10" rx="2" ry="2" stroke="white" stroke-width="1.8" fill="none"/><path d="M22 11v2" stroke="white" stroke-width="2" stroke-linecap="round"/><rect x="4" y="9" width="10" height="6" rx="1" fill="white"/></svg>
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <button class="back-btn" onclick="goBack()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="header-text">
+          <div class="subtitle" id="hdrSubtitle">Loading…</div>
+          <h1 id="hdrTitle">Plot Map</h1>
+        </div>
+      </div>
+      <button class="filter-btn" onclick="openFilter()">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+        Filter
+      </button>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="leg-item">
+        <span class="leg-dot a"></span>
+        <span class="leg-label">Available <b id="countAvail">0</b></span>
+      </div>
+      <div class="leg-item">
+        <span class="leg-dot b"></span>
+        <span class="leg-label">Booked <b id="countBooked">0</b></span>
+      </div>
+      <div class="leg-item">
+        <span class="leg-dot s"></span>
+        <span class="leg-label">Sold <b id="countSold">0</b></span>
+      </div>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="content" id="contentArea">
+
+      <!-- HOME TAB -->
+      <div class="tab-view" id="tabHome">
+        <div class="detail-hero" id="heroSection">
+          <h2 id="heroName"></h2>
+          <div class="loc" id="heroLoc"></div>
+          <div class="badges" id="heroBadges"></div>
+        </div>
+        <div class="info-cards" id="infoCards"></div>
+        <div id="layoutSection"></div>
+      </div>
+
+      <!-- MAP TAB -->
+      <div class="tab-view active" id="tabMap">
+        <!-- Plot Grid -->
+        <div class="grid-section">
+          <div class="grid-wrapper">
+            <table class="grid-table" id="plotGrid"></table>
+          </div>
+        </div>
+        <!-- Block Summary -->
+        <div class="summary-section">
+          <div class="section-title">Block Summary</div>
+          <table class="summary-table">
+            <thead>
+              <tr>
+                <th>BLOCK</th>
+                <th>TOTAL</th>
+                <th>AVAIL</th>
+                <th>BOOKED</th>
+              </tr>
+            </thead>
+            <tbody id="summaryBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+
+    <!-- Bottom Nav -->
+    <div class="bottom-nav">
+      <button class="nav-item" id="navHome" onclick="switchTab('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Home
+      </button>
+      <button class="nav-item active" id="navMap" onclick="switchTab('map')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+        Map
+      </button>
+      <button class="nav-item" id="navBookings" onclick="switchTab('bookings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Bookings
+      </button>
+      <button class="nav-item" id="navCommission" onclick="switchTab('commission')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Commission
+      </button>
+    </div>
+
+  </div><!-- /mainUI -->
+</div><!-- /phone -->
+
+<!-- ── Overlay ───────────────────────────────────── -->
+<div class="overlay" id="overlay" onclick="closeAll()"></div>
+
+<!-- ── Plot Booking Bottom Sheet ─────────────────── -->
+<div class="bottom-sheet" id="plotSheet">
+  <div class="sheet-handle"></div>
+
+  <!-- Detail / Form View -->
+  <div class="sheet-body" id="sheetForm">
+    <div class="plot-header">
+      <div class="plot-badge" id="sheetPlotId">A1</div>
+      <div class="status-pill available">Available</div>
+    </div>
+    <div class="detail-grid" id="sheetDetails"></div>
+    <div class="divider"></div>
+    <div class="form-section">
+      <h3>Your Details</h3>
+      <div class="field">
+        <label>Full Name</label>
+        <input type="text" id="custName" placeholder="Enter your full name" autocomplete="name" />
+      </div>
+      <div class="field">
+        <label>Phone Number</label>
+        <input type="tel" id="custPhone" placeholder="Enter your phone number" autocomplete="tel" inputmode="numeric" />
+      </div>
+      <button class="book-btn" id="bookBtn" onclick="submitBooking()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Confirm Booking
+      </button>
+    </div>
+  </div>
+
+  <!-- Confirmation View -->
+  <div class="confirm-screen" id="confirmView">
+    <div class="confirm-icon">✅</div>
+    <div class="confirm-title">Booking Confirmed!</div>
+    <div class="confirm-sub" id="confirmSub">Your plot has been reserved. Our team will contact you shortly.</div>
+    <div class="confirm-plot" id="confirmDetails"></div>
+    <button class="confirm-close-btn" onclick="closeAll(); resetSheet();">Done</button>
+  </div>
+</div>
+
+<!-- ── Filter Bottom Sheet ─────────────────────── -->
+<div class="filter-sheet" id="filterSheet">
+  <div class="sheet-handle" style="margin:12px auto 0;"></div>
+  <div style="padding: 0 0;">
+    <div class="filter-title">
+      Filter Plots
+      <button class="filter-close" onclick="closeFilter()">Reset</button>
+    </div>
+    <div class="filter-group-label">Status</div>
+    <div class="filter-chips">
+      <button class="filter-chip avail active" data-filter="Available" onclick="toggleFilter(this)">Available</button>
+      <button class="filter-chip booked active" data-filter="Booked" onclick="toggleFilter(this)">Booked</button>
+      <button class="filter-chip sold active" data-filter="Sold" onclick="toggleFilter(this)">Sold</button>
+    </div>
+    <div class="filter-group-label" id="blockFilterLabel" style="display:none;">Block</div>
+    <div class="filter-chips" id="blockFilterChips"></div>
+    <button class="apply-filter-btn" onclick="applyFilter()">Apply Filter</button>
+  </div>
+</div>
+
+<script>
+/* ────────────────────────────────────────────────────
+   State
+──────────────────────────────────────────────────── */
+let allUnits     = [];
+let agentId      = null;
+let shareToken   = null;
+let selectedUnit = null;
+let activeFilters = { status: new Set(['Available','Booked','Sold']), blocks: new Set() };
+let allBlocks    = [];
+let currentTab   = 'map';
+let bookingRecord = null;
+
+/* ────────────────────────────────────────────────────
+   Init
+──────────────────────────────────────────────────── */
+(async () => {
+  // Live clock
+  const tick = () => {
+    const d = new Date();
+    document.getElementById('clockTime').textContent =
+      d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+  };
+  tick(); setInterval(tick, 10000);
+
+  // Extract token from URL
+  const parts = window.location.pathname.split('/');
+  shareToken = parts[parts.length - 1] || parts[parts.length - 2];
+
+  if (!shareToken) return showError('No share token found in URL.');
+
+  try {
+    // Track click & get agentId
+    const trackRes = await fetch(`/api/leads/track/${shareToken}`, { method: 'POST' });
+    if (trackRes.ok) {
+      const td = await trackRes.json();
+      agentId = td.data?.agentId ?? null;
+    }
+
+    // Fetch public project data
+    const res = await fetch(`/api/leads/public/${shareToken}`);
+    if (!res.ok) throw new Error('Link invalid or expired');
+    const { data } = await res.json();
+    if (!data?.project) throw new Error('Project not found');
+
+    allUnits = data.units ?? [];
+    renderUI(data.project, allUnits);
+  } catch (e) {
+    showError(e.message || 'Failed to load project.');
+  }
+})();
+
+/* ────────────────────────────────────────────────────
+   Render
+──────────────────────────────────────────────────── */
+function renderUI(project, units) {
+  document.getElementById('loadingState').style.display = 'none';
+  const mainUI = document.getElementById('mainUI');
+  mainUI.style.display = 'flex';
+
+  // Header
+  document.getElementById('hdrSubtitle').textContent = project.name;
+  document.getElementById('hdrTitle').textContent    = 'Plot Map';
+
+  // Counts
+  updateCounts(units);
+
+  // Grid
+  renderGrid(units);
+
+  // Summary
+  renderSummary(units);
+
+  // Home tab
+  renderHome(project, units);
+
+  // Block filter chips
+  buildBlockFilters(units);
+}
+
+function updateCounts(units) {
+  const avail  = units.filter(u => u.status === 'Available').length;
+  const booked = units.filter(u => u.status === 'Booked').length;
+  const sold   = units.filter(u => u.status === 'Sold').length;
+  document.getElementById('countAvail').textContent  = avail;
+  document.getElementById('countBooked').textContent = booked;
+  document.getElementById('countSold').textContent   = sold;
+}
+
+/* Parse unit_number: "A1", "B12", "C3" → {block:'A', num:1}
+   Falls back to all-numeric or plain string */
+function parseUnit(u) {
+  const m = u.unit_number.match(/^([A-Za-z]+)(\d+)$/);
+  if (m) return { block: m[1].toUpperCase(), num: parseInt(m[2], 10), raw: u.unit_number };
+  const n = parseInt(u.unit_number, 10);
+  if (!isNaN(n)) return { block: 'PLOTS', num: n, raw: u.unit_number };
+  return { block: u.unit_number[0]?.toUpperCase() || 'X', num: 0, raw: u.unit_number };
+}
+
+function renderGrid(units) {
+  const table = document.getElementById('plotGrid');
+  table.innerHTML = '';
+
+  if (!units.length) {
+    table.innerHTML = '<tr><td style="padding:20px;color:#9CA3AF;font-size:13px;">No plots found.</td></tr>';
+    return;
+  }
+
+  const parsed = units.map(u => ({ ...parseUnit(u), unit: u }));
+
+  // Group by block
+  const blocks = {};
+  parsed.forEach(p => {
+    if (!blocks[p.block]) blocks[p.block] = {};
+    blocks[p.block][p.num] = p;
+  });
+
+  const blockKeys = Object.keys(blocks).sort();
+  allBlocks = blockKeys;
+
+  // Max column per block
+  const maxCol = Math.max(...blockKeys.map(b => Math.max(...Object.keys(blocks[b]).map(Number))));
+
+  // Header row
+  const thead = document.createElement('thead');
+  let headRow = '<tr><th></th>';
+  for (let c = 1; c <= maxCol; c++) headRow += `<th class="col-header">${c}</th>`;
+  headRow += '</tr>';
+  thead.innerHTML = headRow;
+  table.appendChild(thead);
+
+  // Body rows
+  const tbody = document.createElement('tbody');
+  blockKeys.forEach(block => {
+    const tr = document.createElement('tr');
+
+    // Row label
+    const th = document.createElement('th');
+    th.className = 'row-label';
+    th.textContent = block;
+    tr.appendChild(th);
+
+    for (let c = 1; c <= maxCol; c++) {
+      const td = document.createElement('td');
+      const plot = blocks[block][c];
+
+      if (!plot) {
+        td.className = 'plot-cell hidden-cell';
+      } else {
+        const statusClass = plot.unit.status.toLowerCase();
+        td.className = `plot-cell ${statusClass}`;
+        td.textContent = plot.raw;
+        td.dataset.unitId = plot.unit.id;
+        td.dataset.status = plot.unit.status;
+        td.dataset.block  = block;
+
+        if (plot.unit.status === 'Available') {
+          td.onclick = () => openPlotSheet(plot.unit);
+        }
+      }
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+function renderSummary(units) {
+  const parsed = units.map(u => ({ ...parseUnit(u), unit: u }));
+  const blocks = {};
+  parsed.forEach(p => {
+    if (!blocks[p.block]) blocks[p.block] = { total: 0, avail: 0, booked: 0, sold: 0 };
+    blocks[p.block].total++;
+    if (p.unit.status === 'Available') blocks[p.block].avail++;
+    if (p.unit.status === 'Booked')    blocks[p.block].booked++;
+    if (p.unit.status === 'Sold')      blocks[p.block].sold++;
+  });
+
+  const tbody = document.getElementById('summaryBody');
+  tbody.innerHTML = '';
+  Object.keys(blocks).sort().forEach(block => {
+    const b = blocks[block];
+    tbody.innerHTML += `
+      <tr>
+        <td class="block-label">Block ${block}</td>
+        <td>${b.total}</td>
+        <td class="avail">${b.avail}</td>
+        <td class="booked">${b.booked}</td>
+      </tr>`;
+  });
+}
+
+function renderHome(project, units) {
+  document.getElementById('heroName').textContent = project.name;
+  document.getElementById('heroLoc').textContent  = '📍 ' + (project.location || '—');
+
+  const badges = document.getElementById('heroBadges');
+  badges.innerHTML = '';
+  if (project.type) badges.innerHTML += `<span class="badge">${project.type}</span>`;
+  if (project.reraNumber) badges.innerHTML += `<span class="badge">RERA: ${project.reraNumber}</span>`;
+
+  const avail  = units.filter(u => u.status === 'Available').length;
+  const booked = units.filter(u => u.status === 'Booked').length;
+  const sold   = units.filter(u => u.status === 'Sold').length;
+  const total  = units.length;
+
+  document.getElementById('infoCards').innerHTML = `
+    <div class="info-card">
+      <div class="ic-label">Total Plots</div>
+      <div class="ic-value">${total}</div>
+      <div class="ic-sub">in this layout</div>
+    </div>
+    <div class="info-card">
+      <div class="ic-label">Available</div>
+      <div class="ic-value" style="color:var(--avail-text)">${avail}</div>
+      <div class="ic-sub">plots open</div>
+    </div>
+    <div class="info-card">
+      <div class="ic-label">Booked</div>
+      <div class="ic-value" style="color:var(--booked-text)">${booked}</div>
+      <div class="ic-sub">reserved</div>
+    </div>
+    <div class="info-card">
+      <div class="ic-label">Sold</div>
+      <div class="ic-value" style="color:var(--sold-text)">${sold}</div>
+      <div class="ic-sub">completed</div>
+    </div>
+  `;
+
+  const layoutSec = document.getElementById('layoutSection');
+  if (project.layoutImageUrl) {
+    layoutSec.innerHTML = `<div class="layout-img"><img src="${project.layoutImageUrl}" alt="Layout" /></div>`;
+  } else {
+    layoutSec.innerHTML = `<div class="layout-placeholder">🗺 Layout image not uploaded yet</div>`;
+  }
+}
+
+function buildBlockFilters(units) {
+  const parsed = units.map(u => parseUnit(u));
+  const blocks = [...new Set(parsed.map(p => p.block))].sort();
+  allBlocks = blocks;
+
+  const container = document.getElementById('blockFilterChips');
+  const label     = document.getElementById('blockFilterLabel');
+
+  if (blocks.length <= 1) { label.style.display = 'none'; return; }
+  label.style.display = '';
+  blocks.forEach(b => activeFilters.blocks.add(b));
+
+  container.innerHTML = '';
+  blocks.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-chip active';
+    btn.dataset.blockFilter = b;
+    btn.textContent = `Block ${b}`;
+    btn.onclick = () => btn.classList.toggle('active');
+    container.appendChild(btn);
+  });
+}
+
+/* ────────────────────────────────────────────────────
+   Tab switching
+──────────────────────────────────────────────────── */
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tabHome').classList.toggle('active', tab === 'home');
+  document.getElementById('tabMap').classList.toggle('active', tab === 'map');
+
+  const navIds = ['navHome','navMap','navBookings','navCommission'];
+  const tabs   = ['home','map','bookings','commission'];
+  navIds.forEach((id, i) => {
+    document.getElementById(id).classList.toggle('active', tabs[i] === tab);
+  });
+
+  if (tab === 'map') {
+    document.getElementById('hdrTitle').textContent = 'Plot Map';
+  } else if (tab === 'home') {
+    document.getElementById('hdrTitle').textContent = 'Project';
+  } else if (tab === 'bookings') {
+    document.getElementById('hdrTitle').textContent = 'My Booking';
+    renderBookingTab();
+  } else if (tab === 'commission') {
+    document.getElementById('hdrTitle').textContent = 'Commission';
+  }
+}
+
+function renderBookingTab() {
+  let tab = document.getElementById('tabBookings');
+  if (!tab) {
+    tab = document.createElement('div');
+    tab.id = 'tabBookings';
+    tab.className = 'tab-view';
+    document.getElementById('contentArea').appendChild(tab);
+  }
+  document.getElementById('tabHome').classList.remove('active');
+  document.getElementById('tabMap').classList.remove('active');
+  tab.classList.add('active');
+
+  if (bookingRecord) {
+    tab.innerHTML = `
+      <div style="padding:24px 16px;">
+        <div style="background:var(--avail-bg);border:1.5px solid var(--avail-border);border-radius:14px;padding:20px;text-align:center;margin-bottom:16px;">
+          <div style="font-size:32px;margin-bottom:8px;">✅</div>
+          <div style="font-size:16px;font-weight:800;color:var(--avail-text);margin-bottom:4px;">Booking Confirmed</div>
+          <div style="font-size:13px;color:var(--text-2);">Booking ID: ${bookingRecord.bookingId}</div>
+        </div>
+        <div style="background:var(--surface);border-radius:12px;border:1px solid var(--border);overflow:hidden;">
+          ${infoRow('Plot', bookingRecord.plotId)}
+          ${infoRow('Name', bookingRecord.custName)}
+          ${infoRow('Phone', bookingRecord.custPhone)}
+          ${infoRow('Area', bookingRecord.sqFt ? bookingRecord.sqFt + ' sq ft' : '—')}
+          ${infoRow('Price', bookingRecord.price ? '₹' + Number(bookingRecord.price).toLocaleString('en-IN') : '—')}
+        </div>
+      </div>`;
+  } else {
+    tab.innerHTML = `
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;gap:12px;">
+        <div style="font-size:40px;">📋</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text-1);">No Booking Yet</div>
+        <div style="font-size:14px;color:var(--text-2);line-height:1.6;">Tap an available plot on the Map tab to make a booking.</div>
+        <button onclick="switchTab('map')" style="margin-top:8px;background:var(--navy);color:white;border:none;border-radius:10px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">View Plot Map</button>
+      </div>`;
+  }
+}
+
+function infoRow(label, val) {
+  return `<div style="display:flex;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);">
+    <span style="font-size:13px;color:var(--text-2);font-weight:500;">${label}</span>
+    <span style="font-size:13px;color:var(--text-1);font-weight:700;">${val || '—'}</span>
+  </div>`;
+}
+
+/* ────────────────────────────────────────────────────
+   Plot Sheet
+──────────────────────────────────────────────────── */
+function openPlotSheet(unit) {
+  selectedUnit = unit;
+
+  document.getElementById('sheetPlotId').textContent = unit.unit_number;
+  document.getElementById('sheetForm').style.display = '';
+  document.getElementById('confirmView').classList.remove('show');
+
+  const details = document.getElementById('sheetDetails');
+  details.innerHTML = `
+    <div class="detail-card">
+      <div class="d-label">Area</div>
+      <div class="d-value">${unit.sq_ft ? Number(unit.sq_ft).toLocaleString('en-IN') : '—'} <span class="d-unit">sq ft</span></div>
+    </div>
+    <div class="detail-card">
+      <div class="d-label">Price</div>
+      <div class="d-value">₹${unit.price ? Number(unit.price).toLocaleString('en-IN') : '—'}</div>
+    </div>
+    ${unit.facing ? `<div class="detail-card"><div class="d-label">Facing</div><div class="d-value">${unit.facing}</div></div>` : ''}
+    ${unit.road_width ? `<div class="detail-card"><div class="d-label">Road Width</div><div class="d-value">${unit.road_width} <span class="d-unit">ft</span></div></div>` : ''}
+  `;
+
+  // Clear form
+  document.getElementById('custName').value  = '';
+  document.getElementById('custPhone').value = '';
+  document.getElementById('bookBtn').disabled = false;
+  document.getElementById('bookBtn').innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+    Confirm Booking`;
+
+  showOverlay();
+  document.getElementById('plotSheet').classList.add('show');
+}
+
+async function submitBooking() {
+  const name  = document.getElementById('custName').value.trim();
+  const phone = document.getElementById('custPhone').value.trim();
+
+  if (!name)  { document.getElementById('custName').focus(); return; }
+  if (!phone) { document.getElementById('custPhone').focus(); return; }
+
+  const btn = document.getElementById('bookBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;"></div> Confirming…';
+
+  try {
+    const payload = {
+      unitId: selectedUnit.id,
+      agentId: agentId,
+      customerName: name,
+      customerPhone: phone,
+      shareToken: shareToken,
+    };
+
+    const res = await fetch('/api/bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      throw new Error(json.message || json.error || 'Booking failed');
+    }
+
+    // Update local state
+    const uid = selectedUnit.id;
+    allUnits = allUnits.map(u => u.id === uid ? { ...u, status: 'Booked' } : u);
+    updateCounts(allUnits);
+    renderGrid(allUnits);
+    renderSummary(allUnits);
+
+    bookingRecord = {
+      bookingId: json.data?.bookingId || '—',
+      plotId: selectedUnit.unit_number,
+      custName: name,
+      custPhone: phone,
+      sqFt: selectedUnit.sq_ft,
+      price: selectedUnit.price,
+    };
+
+    // Show confirmation in sheet
+    document.getElementById('sheetForm').style.display = 'none';
+    document.getElementById('confirmSub').textContent =
+      `Plot ${selectedUnit.unit_number} has been reserved for ${name}. Our team will contact you on ${phone}.`;
+
+    document.getElementById('confirmDetails').innerHTML =
+      infoRow('Plot',  selectedUnit.unit_number) +
+      infoRow('Area',  selectedUnit.sq_ft ? Number(selectedUnit.sq_ft).toLocaleString('en-IN') + ' sq ft' : '—') +
+      infoRow('Price', selectedUnit.price ? '₹' + Number(selectedUnit.price).toLocaleString('en-IN') : '—') +
+      infoRow('Name',  name) +
+      infoRow('Phone', phone);
+
+    document.getElementById('confirmView').classList.add('show');
+
+  } catch (e) {
+    alert(e.message || 'Booking failed. Please try again.');
+    btn.disabled = false;
+    btn.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+      Confirm Booking`;
+  }
+}
+
+function resetSheet() {
+  selectedUnit = null;
+  document.getElementById('confirmView').classList.remove('show');
+  document.getElementById('sheetForm').style.display = '';
+}
+
+/* ────────────────────────────────────────────────────
+   Filter
+──────────────────────────────────────────────────── */
+function openFilter() {
+  showOverlay();
+  document.getElementById('filterSheet').classList.add('show');
+}
+
+function closeFilter() {
+  // Reset all chips to active
+  document.querySelectorAll('#filterSheet .filter-chip').forEach(c => c.classList.add('active'));
+  applyFilter();
+}
+
+function toggleFilter(btn) {
+  btn.classList.toggle('active');
+}
+
+function applyFilter() {
+  const statusChips = document.querySelectorAll('[data-filter]');
+  const activeStatus = new Set();
+  statusChips.forEach(c => { if (c.classList.contains('active')) activeStatus.add(c.dataset.filter); });
+
+  const blockChips = document.querySelectorAll('[data-block-filter]');
+  const activeBlock = new Set();
+  blockChips.forEach(c => { if (c.classList.contains('active')) activeBlock.add(c.dataset.blockFilter); });
+
+  const filtered = allUnits.filter(u => {
+    const parsed = parseUnit(u);
+    const statusOk = activeStatus.has(u.status);
+    const blockOk  = blockChips.length === 0 || activeBlock.has(parsed.block);
+    return statusOk && blockOk;
+  });
+
+  // Re-render grid with filtered units (keep same grid structure, dim non-matching)
+  applyGridFilter(activeStatus, activeBlock);
+  closeAll();
+}
+
+function applyGridFilter(statusSet, blockSet) {
+  document.querySelectorAll('.plot-cell:not(.hidden-cell)').forEach(cell => {
+    const status = cell.dataset.status;
+    const block  = cell.dataset.block;
+    const visible = statusSet.has(status) && (blockSet.size === 0 || blockSet.has(block));
+    cell.style.opacity  = visible ? '1' : '0.2';
+    cell.style.pointerEvents = (visible && status === 'Available') ? 'auto' : 'none';
+  });
+}
+
+/* ────────────────────────────────────────────────────
+   Overlay / Close helpers
+──────────────────────────────────────────────────── */
+function showOverlay() {
+  document.getElementById('overlay').classList.add('show');
+}
+
+function closeAll() {
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('plotSheet').classList.remove('show');
+  document.getElementById('filterSheet').classList.remove('show');
+}
+
+function goBack() {
+  if (currentTab !== 'map' && currentTab !== 'home') {
+    switchTab('map');
+  } else {
+    window.history.back();
+  }
+}
+
+/* ────────────────────────────────────────────────────
+   Error
+──────────────────────────────────────────────────── */
+function showError(msg) {
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('errorState').style.display = 'flex';
+  document.getElementById('errorMsg').textContent = msg;
+}
+</script>
+</body>
+</html>
