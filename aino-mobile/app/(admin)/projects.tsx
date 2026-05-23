@@ -31,14 +31,19 @@ interface Project {
   owner: Owner | null; _count?: { units: number };
 }
 type UnitStatus = 'Available' | 'Booked' | 'Sold';
+interface ConfigAttr {
+  approvalType?: string;
+  approvalAuthority?: string;
+  [key: string]: unknown;
+}
 interface Unit {
   id: string; unit_number: string; sq_ft: number; price: number;
-  facing: string | null; status: UnitStatus;
+  facing: string | null; status: UnitStatus; attributes: Record<string, unknown> | null;
 }
 interface ProjectDoc {
   name: string; url: string; type: 'pdf' | 'image'; uploadedAt: string;
 }
-interface ProjectDetail extends Project { units: Unit[]; documents: ProjectDoc[] }
+interface ProjectDetail extends Project { units: Unit[]; documents: ProjectDoc[]; config_attributes: ConfigAttr | null }
 
 interface CreateForm {
   project_name: string; project_type: string; location: string; rera_number: string; owner_id: string;
@@ -96,8 +101,59 @@ const STATUS_BG: Record<UnitStatus, string> = {
   Available: '#f0fdf4', Booked: '#fffbeb', Sold: '#f8fafc',
 };
 
+const NAVY = '#1A2744';
+const GOLD = '#C9A84C';
+
+const AMENITY_MAP: Record<string, { label: string; icon: React.ComponentProps<typeof Feather>['name']; color: string }> = {
+  water: { label: 'Water Supply', icon: 'droplet', color: '#3b82f6' },
+  electricity: { label: 'Electricity', icon: 'zap', color: '#f59e0b' },
+  drainage: { label: 'Underground Drainage', icon: 'wind', color: '#8b5cf6' },
+  streetLights: { label: 'Street Lights', icon: 'sun', color: '#f97316' },
+  compoundWall: { label: 'Compound Wall', icon: 'square', color: '#64748b' },
+  park: { label: 'Park Area', icon: 'triangle', color: '#16a34a' },
+  clubhouse: { label: 'Clubhouse', icon: 'home', color: '#0ea5e9' },
+  security: { label: '24/7 Security', icon: 'shield', color: '#ef4444' },
+};
+
 const formatINR = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
+
+function deriveAmenities(units: Unit[]) {
+  const found = new Set<string>();
+  for (const u of units) {
+    const a = u.attributes ?? {};
+    for (const key of Object.keys(AMENITY_MAP)) {
+      if (a[key] === true) found.add(key);
+    }
+  }
+  return Array.from(found).map((k) => AMENITY_MAP[k]);
+}
+
+function deriveStats(units: Unit[]) {
+  const total = units.length;
+  const available = units.filter((u) => u.status === 'Available').length;
+  const prices = units.filter((u) => u.sq_ft > 0).map((u) => u.price / u.sq_ft);
+  const perSqft = prices.length > 0 ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
+  return { total, available, perSqft };
+}
+
+function deriveTags(project: ProjectDetail): string[] {
+  const tags: string[] = [];
+  if (project.project_type) tags.push(project.project_type);
+  const facings = project.units.map((u) => u.facing).filter((f): f is string => !!f);
+  if (facings.length > 0) {
+    const freq = facings.reduce<Record<string, number>>((acc, f) => { acc[f] = (acc[f] ?? 0) + 1; return acc; }, {});
+    const top = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (top) tags.push(`${top} Facing`);
+  }
+  return tags;
+}
+
+function getApprovalLabel(cfg: ConfigAttr | null): string {
+  if (!cfg?.approvalType) return '';
+  const auth = cfg.approvalAuthority ? `${String(cfg.approvalAuthority)} ` : '';
+  return `${auth}${String(cfg.approvalType)} APPROVED`;
+}
 
 // ─── Reusable form components ─────────────────────────────────────────────────
 

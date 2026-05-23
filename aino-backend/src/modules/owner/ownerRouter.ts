@@ -11,6 +11,7 @@ router.get('/projects', ownerController.getProjects);
 router.get('/projects/:id', ownerController.getProjectById);
 router.get('/bookings', ownerController.getBookings);
 router.post('/bookings/:id/verify', ownerController.verifyBooking);
+router.post('/bookings/:id/sold', ownerController.markAsSold);
 router.get('/reports', ownerController.getReports);
 
 export default router;

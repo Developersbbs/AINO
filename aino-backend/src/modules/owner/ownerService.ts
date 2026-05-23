@@ -1,5 +1,5 @@
 import prisma from '../../config/database';
-import { UnitStatus, CommissionStatus } from '@prisma/client';
+import { UnitStatus, CommissionStatus, BookingStatus } from '@prisma/client';
 import { AppError } from '../../middlewares/errorHandler';
 import { createNotification } from '../notifications/notificationService';
 
@@ -44,6 +44,7 @@ export const getOwnerProjectById = (ownerId: string, projectId: string) => {
           road_width: true,
           status: true,
           coordinates: true,
+          attributes: true,
         },
         orderBy: { unit_number: 'asc' },
       },
@@ -51,14 +52,15 @@ export const getOwnerProjectById = (ownerId: string, projectId: string) => {
   });
 };
 
-export const getOwnerBookings = (ownerId: string) => {
+export const getOwnerBookings = (ownerId: string, status: BookingStatus) => {
   return prisma.booking.findMany({
-    where: { unit: { project: { owner_id: ownerId } } },
+    where: { unit: { project: { owner_id: ownerId } }, status },
     include: {
       unit: {
         select: {
           id: true,
           unit_number: true,
+          sq_ft: true,
           price: true,
           status: true,
           project: { select: { id: true, project_name: true } },
@@ -70,6 +72,7 @@ export const getOwnerBookings = (ownerId: string) => {
   });
 };
 
+// Stage 1: Owner confirms initial payment received (Pending → Confirmed) or rejects
 export const verifyBooking = async (bookingId: string, confirmed: boolean) => {
   const result = await prisma.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({
@@ -79,44 +82,75 @@ export const verifyBooking = async (bookingId: string, confirmed: boolean) => {
       },
     });
     if (!booking) throw new AppError('NOT_FOUND', 'Booking not found');
+    if (booking.status !== BookingStatus.Pending) throw new AppError('BAD_REQUEST', 'Booking is not in Pending state');
 
     if (confirmed) {
-      await tx.unit.update({
-        where: { id: booking.unit_id },
-        data: { status: UnitStatus.Sold },
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: { status: BookingStatus.Confirmed, confirmed_at: new Date() },
       });
-      return { status: 'sold' as const, booking };
+      return { status: 'confirmed' as const, booking };
     }
 
+    // Reject: free the unit and remove booking + commission
     await tx.unit.update({
       where: { id: booking.unit_id },
       data: { status: UnitStatus.Available, booked_by_agent_id: null },
     });
-    await tx.commission.deleteMany({
-      where: { unit_id: booking.unit_id, agent_id: booking.agent_id },
-    });
+    await tx.commission.deleteMany({ where: { unit_id: booking.unit_id, agent_id: booking.agent_id } });
     await tx.booking.delete({ where: { id: bookingId } });
     return { status: 'rejected' as const, booking };
   });
 
   const { booking } = result;
-  if (result.status === 'sold') {
+  if (result.status === 'confirmed') {
     void createNotification(
       booking.agent_id,
-      'Sale Confirmed! 🏆',
-      `Plot ${booking.unit.unit_number} in ${booking.unit.project.project_name} has been verified as sold.`,
-      'booking_sold',
+      'Booking Confirmed ✅',
+      `Booking for Plot ${booking.unit.unit_number} in ${booking.unit.project.project_name} has been confirmed. Await full payment.`,
+      'booking_confirmed',
       { bookingId: booking.id, unitNumber: booking.unit.unit_number },
     );
   } else {
     void createNotification(
       booking.agent_id,
       'Booking Rejected',
-      `The booking for Plot ${booking.unit.unit_number} in ${booking.unit.project.project_name} was not confirmed.`,
+      `The booking for Plot ${booking.unit.unit_number} in ${booking.unit.project.project_name} was rejected.`,
       'booking_rejected',
       { bookingId: booking.id, unitNumber: booking.unit.unit_number },
     );
   }
+
+  return { status: result.status };
+};
+
+// Stage 2: Full payment received → mark unit as Sold
+export const markAsSold = async (bookingId: string) => {
+  const result = await prisma.$transaction(async (tx) => {
+    const booking = await tx.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        unit: { select: { unit_number: true, project: { select: { project_name: true } } } },
+      },
+    });
+    if (!booking) throw new AppError('NOT_FOUND', 'Booking not found');
+    if (booking.status !== BookingStatus.Confirmed) throw new AppError('BAD_REQUEST', 'Booking must be Confirmed before marking as Sold');
+
+    await tx.unit.update({ where: { id: booking.unit_id }, data: { status: UnitStatus.Sold } });
+    await tx.booking.update({
+      where: { id: bookingId },
+      data: { status: BookingStatus.Sold, sold_at: new Date() },
+    });
+    return { status: 'sold' as const, booking };
+  });
+
+  void createNotification(
+    result.booking.agent_id,
+    'Sale Completed! 🏆',
+    `Plot ${result.booking.unit.unit_number} in ${result.booking.unit.project.project_name} has been marked as sold. Commission will be processed.`,
+    'booking_sold',
+    { bookingId: result.booking.id, unitNumber: result.booking.unit.unit_number },
+  );
 
   return { status: result.status };
 };

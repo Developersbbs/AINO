@@ -23,6 +23,13 @@ enum CommissionStatus {
   Paid
 }
 
+enum BookingStatus {
+  Pending
+  Confirmed
+  Sold
+  Rejected
+}
+
 model User {
   id           String    @id @default(uuid())
   name         String
@@ -116,12 +123,15 @@ model Lead {
 }
 
 model Booking {
-  id               String   @id @default(uuid())
+  id               String        @id @default(uuid())
   unit_id          String
   agent_id         String
   customer_name    String
   customer_phone   String
-  booking_date     DateTime @default(now())
+  booking_date     DateTime      @default(now())
+  status           BookingStatus @default(Pending)
+  confirmed_at     DateTime?
+  sold_at          DateTime?
 
   unit             Unit     @relation(fields: [unit_id], references: [id])
   agent            User     @relation(fields: [agent_id], references: [id])

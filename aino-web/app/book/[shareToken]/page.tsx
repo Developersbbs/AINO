@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 import TrackClick from './TrackClick';
-import PlotMapUI from './LayoutMap';
+
+const PlotMapUI = dynamic(() => import('./LayoutMap'), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

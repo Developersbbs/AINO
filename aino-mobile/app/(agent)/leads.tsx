@@ -12,7 +12,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
-import * as ExpoLinking from 'expo-linking';
 import api from '@/src/api/client';
 
 interface Lead {
@@ -26,9 +25,10 @@ interface Lead {
 
 const GREEN = '#1e3c6e';
 const BLUE = '#1e3c6e';
+const SHARE_BASE = process.env.EXPO_PUBLIC_SHARE_URL ?? 'http://localhost:3000';
 
 function shareUrl(token: string) {
-  return ExpoLinking.createURL(`/book/${token}`);
+  return `${SHARE_BASE}/book/${token}`;
 }
 
 function formatDate(iso: string): string {

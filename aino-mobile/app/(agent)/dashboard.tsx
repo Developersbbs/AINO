@@ -14,7 +14,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/src/stores/useAuthStore';
 import api from '@/src/api/client';
 import * as Clipboard from 'expo-clipboard';
-import * as ExpoLinking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import Svg, { Circle, Rect, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
@@ -55,8 +54,9 @@ function getGreeting() {
   return 'Good evening';
 }
 
+const SHARE_BASE = process.env.EXPO_PUBLIC_SHARE_URL ?? 'http://localhost:3000';
 function shareUrl(token: string) {
-  return ExpoLinking.createURL(`/book/${token}`);
+  return `${SHARE_BASE}/book/${token}`;
 }
 
 function formatDate(iso: string): string {

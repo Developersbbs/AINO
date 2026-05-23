@@ -25,7 +25,8 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
 
 export const getBookings = async (req: AuthRequest, res: Response) => {
   try {
-    const bookings = await ownerService.getOwnerBookings(req.user!.id);
+    const status = (req.query['status'] as string) === 'Confirmed' ? 'Confirmed' : 'Pending';
+    const bookings = await ownerService.getOwnerBookings(req.user!.id, status as any);
     return apiResponse(res, 200, bookings, 'Bookings retrieved');
   } catch {
     return apiResponse(res, 500, null, 'Server error');
@@ -38,15 +39,24 @@ export const verifyBooking = async (req: AuthRequest, res: Response) => {
     if (typeof confirmed !== 'boolean') {
       return apiResponse(res, 400, null, 'confirmed must be a boolean');
     }
-
-    const result = await ownerService.verifyBooking(String(req.params.id), confirmed);
-    const message = confirmed
-      ? 'Booking confirmed, unit marked as sold'
-      : 'Booking rejected, unit returned to available';
+    const result = await ownerService.verifyBooking(String(req.params['id']), confirmed);
+    const message = confirmed ? 'Booking confirmed' : 'Booking rejected, unit returned to available';
     return apiResponse(res, 200, result, message);
   } catch (error) {
-    if (error instanceof AppError && error.code === 'NOT_FOUND') {
-      return apiResponse(res, 404, null, error.message);
+    if (error instanceof AppError && (error.code === 'NOT_FOUND' || error.code === 'BAD_REQUEST')) {
+      return apiResponse(res, 400, null, error.message);
+    }
+    return apiResponse(res, 500, null, 'Server error');
+  }
+};
+
+export const markAsSold = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await ownerService.markAsSold(String(req.params['id']));
+    return apiResponse(res, 200, result, 'Unit marked as sold');
+  } catch (error) {
+    if (error instanceof AppError && (error.code === 'NOT_FOUND' || error.code === 'BAD_REQUEST')) {
+      return apiResponse(res, 400, null, error.message);
     }
     return apiResponse(res, 500, null, 'Server error');
   }
