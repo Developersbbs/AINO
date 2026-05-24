@@ -22,6 +22,7 @@ router.post('/refresh',    refreshValidator,    validate, authController.refresh
 router.post('/logout',     protect,                       authController.logout);
 router.delete('/account',  protect,                       authController.deleteAccount);
 router.get('/me',          protect,                       authController.me);
+router.patch('/me',        protect,                       authController.updateMe);
 
 router.post(
   '/me/documents',

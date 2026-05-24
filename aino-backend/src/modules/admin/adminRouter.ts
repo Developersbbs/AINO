@@ -21,6 +21,8 @@ router.post('/agents/:id/approve',      adminController.approveAgent);
 router.post('/agents/:id/reject',       adminController.rejectAgent);
 router.post('/agents/:id/deactivate',   adminController.deactivateAgent);
 
+router.patch('/users/:id',               adminController.editUser);
+
 // Commission config
 router.get('/commission-config',                        commissionController.getConfig);
 router.patch('/commission-config/global',               commissionController.patchGlobalRate);

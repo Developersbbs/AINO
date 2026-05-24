@@ -222,15 +222,46 @@ function DocItem({ doc, index }: Readonly<{ doc: UserDoc; index: number }>) {
 function DetailSheet({
   person, tab, onClose,
   onApprove, onDeactivate, approving, deactivating,
+  onPersonUpdated,
 }: {
   person: Person; tab: Tab; onClose: () => void;
   onApprove: () => void; onDeactivate: () => void;
   approving: boolean; deactivating: boolean;
+  onPersonUpdated: (p: Person) => void;
 }) {
   const insets = useSafeAreaInsets();
   const { color, label } = TAB_CONFIG[tab];
   const accentColor = person.is_approved ? color : AMBER;
   const docs = person.documents ?? [];
+
+  const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [focused, setFocused] = useState<string | null>(null);
+
+  const editMut = useMutation({
+    mutationFn: ({ name, email, phone }: { name: string; email: string; phone: string }) =>
+      api.patch(`/admin/users/${person.id}`, {
+        ...(name.trim() && { name: name.trim() }),
+        email: email.trim() || null,
+        ...(phone.trim() && { phone: phone.trim() }),
+      }),
+    onSuccess: (res) => {
+      onPersonUpdated({ ...person, ...res.data.data });
+      setEditMode(false);
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err.response?.data?.message ?? 'Could not save changes.');
+    },
+  });
+
+  const startEdit = () => {
+    setEditName(person.name);
+    setEditEmail(person.email ?? '');
+    setEditPhone(person.phone);
+    setEditMode(true);
+  };
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -256,60 +287,122 @@ function DetailSheet({
             </View>
           </View>
 
-          {/* Info rows */}
-          <View style={s.infoBlock}>
-            <InfoRow icon="phone" value={person.phone} />
-            {person.email && <InfoRow icon="mail" value={person.email} />}
-            <InfoRow icon="calendar" value={`Joined ${formatDate(person.created_at)}`} />
-          </View>
+          {editMode ? (
+            <>
+              <View style={s.editFieldsWrap}>
+                <CreateField
+                  icon="user" label="FULL NAME" placeholder="Full name"
+                  value={editName} onChangeText={setEditName}
+                  focused={focused === 'name'}
+                  onFocus={() => setFocused('name')} onBlur={() => setFocused(null)}
+                />
+                <CreateField
+                  icon="mail" label="EMAIL (OPTIONAL)" placeholder="email@example.com"
+                  value={editEmail} onChangeText={setEditEmail}
+                  keyboardType="email-address" autoCapitalize="none"
+                  focused={focused === 'email'}
+                  onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
+                />
+                <CreateField
+                  icon="phone" label="PHONE" placeholder="+91XXXXXXXXXX"
+                  value={editPhone} onChangeText={setEditPhone}
+                  keyboardType="phone-pad"
+                  focused={focused === 'phone'}
+                  onFocus={() => setFocused('phone')} onBlur={() => setFocused(null)}
+                />
+              </View>
+              <View style={s.sheetActions}>
+                <TouchableOpacity
+                  style={[s.sheetBtn, { backgroundColor: '#e2e8f0' }]}
+                  onPress={() => setEditMode(false)}
+                  disabled={editMut.isPending}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.sheetBtnText, { color: '#475569' }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.sheetBtn, { backgroundColor: GREEN }, (editMut.isPending || !editName.trim()) && s.btnDisabled]}
+                  onPress={() => editMut.mutate({ name: editName, email: editEmail, phone: editPhone })}
+                  disabled={editMut.isPending || !editName.trim()}
+                  activeOpacity={0.8}
+                >
+                  {editMut.isPending ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Feather name="check" size={15} color="#fff" />
+                      <Text style={s.sheetBtnText}>Save</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <>
+              {/* Info rows */}
+              <View style={s.infoBlock}>
+                <InfoRow icon="phone" value={person.phone} />
+                {person.email && <InfoRow icon="mail" value={person.email} />}
+                <InfoRow icon="calendar" value={`Joined ${formatDate(person.created_at)}`} />
+              </View>
 
-          {/* Documents */}
-          <View style={s.docsBlock}>
-            <Text style={s.docsTitle}>
-              <Feather name="paperclip" size={13} color="#64748b" /> Documents ({docs.length})
-            </Text>
-            {docs.length === 0 ? (
-              <Text style={s.docsEmpty}>No documents uploaded</Text>
-            ) : (
-              docs.map((doc, i) => <DocItem key={`${doc.uploadedAt}-${doc.name}`} doc={doc} index={i} />)
-            )}
-          </View>
-
-          {/* Actions */}
-          <View style={s.sheetActions}>
-            {!person.is_approved && (
-              <TouchableOpacity
-                style={[s.sheetBtn, { backgroundColor: GREEN }, approving && s.btnDisabled]}
-                onPress={onApprove}
-                disabled={approving || deactivating}
-                activeOpacity={0.8}
-              >
-                {approving ? (
-                  <ActivityIndicator size="small" color="#fff" />
+              {/* Documents */}
+              <View style={s.docsBlock}>
+                <Text style={s.docsTitle}>
+                  <Feather name="paperclip" size={13} color="#64748b" /> Documents ({docs.length})
+                </Text>
+                {docs.length === 0 ? (
+                  <Text style={s.docsEmpty}>No documents uploaded</Text>
                 ) : (
-                  <>
-                    <Feather name="check" size={15} color="#fff" />
-                    <Text style={s.sheetBtnText}>Approve</Text>
-                  </>
+                  docs.map((doc, i) => <DocItem key={`${doc.uploadedAt}-${doc.name}`} doc={doc} index={i} />)
                 )}
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={[s.sheetBtn, { backgroundColor: RED }, deactivating && s.btnDisabled]}
-              onPress={onDeactivate}
-              disabled={approving || deactivating}
-              activeOpacity={0.8}
-            >
-              {deactivating ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Feather name="slash" size={15} color="#fff" />
-                  <Text style={s.sheetBtnText}>Deactivate</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
+              </View>
+
+              {/* Actions */}
+              <View style={s.sheetActions}>
+                <TouchableOpacity
+                  style={[s.sheetBtn, { backgroundColor: '#64748b' }]}
+                  onPress={startEdit}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="edit-2" size={15} color="#fff" />
+                  <Text style={s.sheetBtnText}>Edit</Text>
+                </TouchableOpacity>
+                {!person.is_approved && (
+                  <TouchableOpacity
+                    style={[s.sheetBtn, { backgroundColor: GREEN }, approving && s.btnDisabled]}
+                    onPress={onApprove}
+                    disabled={approving || deactivating}
+                    activeOpacity={0.8}
+                  >
+                    {approving ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Feather name="check" size={15} color="#fff" />
+                        <Text style={s.sheetBtnText}>Approve</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[s.sheetBtn, { backgroundColor: RED }, deactivating && s.btnDisabled]}
+                  onPress={onDeactivate}
+                  disabled={approving || deactivating}
+                  activeOpacity={0.8}
+                >
+                  {deactivating ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Feather name="slash" size={15} color="#fff" />
+                      <Text style={s.sheetBtnText}>Deactivate</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </View>
       </View>
     </Modal>
@@ -433,6 +526,12 @@ export default function TeamScreen() {
       Alert.alert('Error', err.response?.data?.message ?? 'Could not create. Try again.');
     },
   });
+
+  const handlePersonUpdated = (updated: Person) => {
+    setSelected((prev) => (prev ? { ...prev, person: { ...prev.person, ...updated } } : null));
+    queryClient.invalidateQueries({ queryKey: ['admin-agents'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-owners'] });
+  };
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -620,6 +719,7 @@ export default function TeamScreen() {
           }
           approving={approveMut.isPending && approveMut.variables === selected.person.id}
           deactivating={deactivateMut.isPending && deactivateMut.variables === selected.person.id}
+          onPersonUpdated={handlePersonUpdated}
         />
       )}
     </SafeAreaView>
@@ -761,6 +861,7 @@ const s = StyleSheet.create({
   docTypeImg: { backgroundColor: '#e0f2fe' },
   docTypeText: { fontSize: 10, fontWeight: '800', color: '#475569' },
 
+  editFieldsWrap: { marginBottom: 16 },
   sheetActions: { flexDirection: 'row', gap: 12 },
   sheetBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

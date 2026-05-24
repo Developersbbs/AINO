@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -113,12 +114,15 @@ function DocRow({ doc, index, onDelete, deleting }: Readonly<{
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, updateUser } = useAuthStore();
   const qc = useQueryClient();
   const [loggingOut, setLoggingOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedType, setSelectedType] = useState<DocType>('Aadhaar Card');
+  const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
 
   const roleColor = user ? (ROLE_COLOR[user.role] ?? GREEN) : GREEN;
   const roleLabel = user ? (ROLE_LABEL[user.role] ?? user.role.toUpperCase()) : '';
@@ -137,6 +141,29 @@ export default function ProfileScreen() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profile-me'] }),
     onError: () => Alert.alert('Error', 'Could not delete document.'),
   });
+
+  const updateMeMut = useMutation({
+    mutationFn: ({ name, email }: { name: string; email: string }) =>
+      api.patch('/auth/me', {
+        ...(name.trim() && { name: name.trim() }),
+        email: email.trim() || null,
+      }),
+    onSuccess: async (res) => {
+      const updated = res.data.user as { name: string };
+      await updateUser({ ...user!, name: updated.name });
+      qc.invalidateQueries({ queryKey: ['profile-me'] });
+      setEditMode(false);
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err.response?.data?.message ?? 'Could not save changes.');
+    },
+  });
+
+  const startEdit = () => {
+    setEditName(meData?.name ?? user?.name ?? '');
+    setEditEmail(meData?.email ?? '');
+    setEditMode(true);
+  };
 
   const handlePickAndUpload = async () => {
     try {
@@ -256,37 +283,142 @@ export default function ProfileScreen() {
         <View style={s.content}>
 
           {/* Account info */}
-          <Text style={s.sectionLabel}>ACCOUNT</Text>
+          <View style={s.sectionRow}>
+            <Text style={[s.sectionLabel, { marginBottom: 0 }]}>ACCOUNT</Text>
+            {!editMode && (
+              <TouchableOpacity
+                onPress={startEdit}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="edit-2" size={15} color="#94a3b8" />
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={s.menuGroup}>
-            <View style={s.infoRow}>
-              <View style={s.infoIconWrap}>
-                <Feather name="user" size={16} color="#64748b" />
-              </View>
-              <View style={s.infoText}>
-                <Text style={s.infoLabel}>Full Name</Text>
-                <Text style={s.infoValue}>{user.name}</Text>
-              </View>
-            </View>
-            <View style={s.separator} />
-            <View style={s.infoRow}>
-              <View style={s.infoIconWrap}>
-                <Feather name="phone" size={16} color="#64748b" />
-              </View>
-              <View style={s.infoText}>
-                <Text style={s.infoLabel}>Phone Number</Text>
-                <Text style={s.infoValue}>{user.phone}</Text>
-              </View>
-            </View>
-            <View style={s.separator} />
-            <View style={s.infoRow}>
-              <View style={s.infoIconWrap}>
-                <Feather name="shield" size={16} color="#64748b" />
-              </View>
-              <View style={s.infoText}>
-                <Text style={s.infoLabel}>Role</Text>
-                <Text style={[s.infoValue, { color: roleColor }]}>{user.role}</Text>
-              </View>
-            </View>
+            {editMode ? (
+              <>
+                <View style={s.editFieldWrap}>
+                  <Text style={s.editFieldLabel}>FULL NAME</Text>
+                  <View style={s.editFieldRow}>
+                    <View style={s.editFieldIcon}>
+                      <Feather name="user" size={15} color="#64748b" />
+                    </View>
+                    <TextInput
+                      style={s.editFieldInput}
+                      value={editName}
+                      onChangeText={setEditName}
+                      placeholder="Your name"
+                      placeholderTextColor="#94a3b8"
+                      autoCapitalize="words"
+                      returnKeyType="next"
+                    />
+                  </View>
+                </View>
+                <View style={s.separator} />
+                <View style={s.editFieldWrap}>
+                  <Text style={s.editFieldLabel}>EMAIL (OPTIONAL)</Text>
+                  <View style={s.editFieldRow}>
+                    <View style={s.editFieldIcon}>
+                      <Feather name="mail" size={15} color="#64748b" />
+                    </View>
+                    <TextInput
+                      style={s.editFieldInput}
+                      value={editEmail}
+                      onChangeText={setEditEmail}
+                      placeholder="your@email.com"
+                      placeholderTextColor="#94a3b8"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      returnKeyType="done"
+                    />
+                  </View>
+                </View>
+                <View style={s.separator} />
+                <View style={s.infoRow}>
+                  <View style={s.infoIconWrap}>
+                    <Feather name="phone" size={16} color="#64748b" />
+                  </View>
+                  <View style={s.infoText}>
+                    <Text style={s.infoLabel}>Phone (cannot be changed)</Text>
+                    <Text style={s.infoValue}>{user.phone}</Text>
+                  </View>
+                  <Feather name="lock" size={14} color="#cbd5e1" />
+                </View>
+                <View style={s.separator} />
+                <View style={s.editActions}>
+                  <TouchableOpacity
+                    style={s.editCancelBtn}
+                    onPress={() => setEditMode(false)}
+                    disabled={updateMeMut.isPending}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={s.editCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      s.editSaveBtn,
+                      { backgroundColor: roleColor },
+                      (updateMeMut.isPending || !editName.trim()) && { opacity: 0.5 },
+                    ]}
+                    onPress={() => updateMeMut.mutate({ name: editName, email: editEmail })}
+                    disabled={updateMeMut.isPending || !editName.trim()}
+                    activeOpacity={0.85}
+                  >
+                    {updateMeMut.isPending ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={s.editSaveBtnText}>Save Changes</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={s.infoRow}>
+                  <View style={s.infoIconWrap}>
+                    <Feather name="user" size={16} color="#64748b" />
+                  </View>
+                  <View style={s.infoText}>
+                    <Text style={s.infoLabel}>Full Name</Text>
+                    <Text style={s.infoValue}>{meData?.name ?? user.name}</Text>
+                  </View>
+                </View>
+                <View style={s.separator} />
+                <View style={s.infoRow}>
+                  <View style={s.infoIconWrap}>
+                    <Feather name="phone" size={16} color="#64748b" />
+                  </View>
+                  <View style={s.infoText}>
+                    <Text style={s.infoLabel}>Phone Number</Text>
+                    <Text style={s.infoValue}>{user.phone}</Text>
+                  </View>
+                </View>
+                {meData?.email && (
+                  <>
+                    <View style={s.separator} />
+                    <View style={s.infoRow}>
+                      <View style={s.infoIconWrap}>
+                        <Feather name="mail" size={16} color="#64748b" />
+                      </View>
+                      <View style={s.infoText}>
+                        <Text style={s.infoLabel}>Email</Text>
+                        <Text style={s.infoValue}>{meData.email}</Text>
+                      </View>
+                    </View>
+                  </>
+                )}
+                <View style={s.separator} />
+                <View style={s.infoRow}>
+                  <View style={s.infoIconWrap}>
+                    <Feather name="shield" size={16} color="#64748b" />
+                  </View>
+                  <View style={s.infoText}>
+                    <Text style={s.infoLabel}>Role</Text>
+                    <Text style={[s.infoValue, { color: roleColor }]}>{user.role}</Text>
+                  </View>
+                </View>
+              </>
+            )}
           </View>
 
           {/* Documents */}
@@ -414,6 +546,30 @@ const s = StyleSheet.create({
     fontSize: 11, fontWeight: '700', color: '#94a3b8',
     letterSpacing: 0.8, marginBottom: 10,
   },
+  sectionRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: 10,
+  },
+  editFieldWrap: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 },
+  editFieldLabel: { fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 0.7, marginBottom: 6 },
+  editFieldRow: {
+    flexDirection: 'row', alignItems: 'center', height: 48,
+    borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 12, backgroundColor: '#f8fafc',
+  },
+  editFieldIcon: {
+    width: 46, alignItems: 'center', justifyContent: 'center',
+    borderRightWidth: 1, borderRightColor: '#e2e8f0', alignSelf: 'stretch',
+  },
+  editFieldInput: { flex: 1, paddingHorizontal: 12, fontSize: 15, color: '#0a0f1c', fontWeight: '500' },
+  editActions: { flexDirection: 'row', gap: 12, padding: 16, paddingTop: 12 },
+  editCancelBtn: {
+    flex: 1, height: 46, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: '#e2e8f0',
+  },
+  editCancelText: { fontSize: 14, fontWeight: '700', color: '#64748b' },
+  editSaveBtn: { flex: 2, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  editSaveBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
   menuGroup: {
     backgroundColor: '#fff', borderRadius: 18,
     ...shadow('#000', 3, 0.05, 10, 2),

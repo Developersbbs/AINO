@@ -100,6 +100,17 @@ export const getAllProjectsAdmin = () => {
   });
 };
 
+export const updateUser = (
+  id: string,
+  data: { name?: string; email?: string | null; phone?: string },
+) => {
+  return prisma.user.update({
+    where: { id },
+    data,
+    select: { id: true, name: true, phone: true, email: true, role: true, is_approved: true },
+  });
+};
+
 export const getDashboardStats = async () => {
   const [
     totalProjects,

@@ -106,6 +106,27 @@ export const me = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const updateMe = async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, email } = req.body as { name?: string; email?: string };
+    if (!name?.trim() && !email?.trim()) {
+      return res.status(400).json({ message: 'Provide name or email to update' });
+    }
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: {
+        ...(name?.trim() && { name: name.trim() }),
+        ...(email?.trim() ? { email: email.trim() } : {}),
+      },
+      select: { id: true, name: true, phone: true, email: true, role: true, is_approved: true },
+    });
+    return res.status(200).json({ user });
+  } catch (error: any) {
+    if (error.code === 'P2002') return res.status(409).json({ message: 'Email already in use' });
+    return res.status(500).json({ message: 'Server error', error });
+  }
+};
+
 export const uploadUserDocument = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No file provided' });

@@ -113,6 +113,26 @@ export const deactivateOwner = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const editUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = String(req.params.id);
+    const { name, email, phone } = req.body as { name?: string; email?: string; phone?: string };
+    if (!name?.trim() && !email?.trim() && !phone?.trim()) {
+      return apiResponse(res, 400, null, 'Provide at least one field to update');
+    }
+    const user = await adminService.updateUser(id, {
+      ...(name?.trim() && { name: name.trim() }),
+      ...(email?.trim() !== undefined && { email: email.trim() || null }),
+      ...(phone?.trim() && { phone: phone.trim() }),
+    });
+    return apiResponse(res, 200, user, 'User updated');
+  } catch (error: any) {
+    if (error.code === 'P2002') return apiResponse(res, 409, null, 'Phone or email already in use');
+    if (error.code === 'P2025') return apiResponse(res, 404, null, 'User not found');
+    return apiResponse(res, 500, null, 'Server error');
+  }
+};
+
 export const getAdminProjects = async (_req: AuthRequest, res: Response) => {
   try {
     const projects = await adminService.getAllProjectsAdmin();
