@@ -13,6 +13,7 @@ import commissionRoutes from '../modules/commissions/commissionRouter';
 import ownerRoutes from '../modules/owner/ownerRouter';
 import bulkRoutes from '../modules/bulk/bulkRouter';
 import notificationRoutes from '../modules/notifications/notificationRouter';
+import searchRoutes from '../modules/search/searchRouter';
 
 router.use('/auth', authRoutes);
 router.use('/admin', adminRoutes);
@@ -24,5 +25,6 @@ router.use('/commissions', commissionRoutes);
 router.use('/owner', ownerRoutes);
 router.use('/bulk', bulkRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/search', searchRoutes);
 
 export default router;

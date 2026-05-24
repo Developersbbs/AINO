@@ -28,7 +28,11 @@ const DIGIT_COUNT = 6;
 const GREEN = '#1e3c6e';
 const DIGIT_SLOTS = [0, 1, 2, 3, 4, 5] as const;
 
-function navigateAfterLogin(role: string, router: { replace: (href: any) => void }) {
+function navigateAfterLogin(role: string, isApproved: boolean, router: { replace: (href: any) => void }) {
+  if (!isApproved && role !== 'Admin') {
+    router.replace('/(pending)');
+    return;
+  }
   let dest = '/(owner)/dashboard';
   if (role === 'Admin') dest = '/(admin)/dashboard';
   else if (role === 'Agent') dest = '/(agent)/dashboard';
@@ -101,7 +105,7 @@ async function execBackendOtpVerify(
     accessToken: string; refreshToken: string; user: AuthUser;
   };
   await onSetAuth(user, accessToken, refreshToken);
-  navigateAfterLogin(user.role, router);
+  navigateAfterLogin(user.role, user.isApproved ?? true, router);
 }
 
 async function execFirebaseVerify(
@@ -131,7 +135,7 @@ async function execFirebaseVerify(
       accessToken: string; refreshToken: string; user: AuthUser;
     };
     await onSetAuth(user, accessToken, refreshToken);
-    navigateAfterLogin(user.role, router);
+    navigateAfterLogin(user.role, user.isApproved ?? true, router);
   }
 }
 

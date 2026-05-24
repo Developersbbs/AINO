@@ -54,10 +54,6 @@ export const verifyOtp = async (req: Request, res: Response) => {
       });
     }
 
-    if (!user.is_approved && user.role !== 'Admin') {
-      return res.status(403).json({ message: 'Account pending approval by admin' });
-    }
-
     const { accessToken, refreshToken } = await authService.generateTokens(user.id, user.role);
 
     return res.status(200).json({
@@ -101,12 +97,61 @@ export const me = async (req: AuthRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { id: true, name: true, phone: true, email: true, role: true, is_approved: true },
+      select: { id: true, name: true, phone: true, email: true, role: true, is_approved: true, documents: true },
     });
     if (!user) return res.status(404).json({ message: 'User not found' });
     return res.status(200).json({ user });
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+export const uploadUserDocument = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'No file provided' });
+    const userId = req.user!.id;
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { documents: true } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const existing = (user.documents as any[]) ?? [];
+    const newDoc = {
+      name: (req.body.docType as string | undefined)?.trim() || req.file.originalname,
+      url: `/uploads/user-docs/${req.file.filename}`,
+      type: req.file.mimetype.includes('pdf') ? 'pdf' : 'image',
+      uploadedAt: new Date().toISOString(),
+    };
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { documents: [...existing, newDoc] as any },
+    });
+
+    return res.status(200).json({ message: 'Document uploaded', document: newDoc });
+  } catch {
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const deleteUserDocument = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const index = Number(req.params.index);
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { documents: true } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const existing = (user.documents as any[]) ?? [];
+    if (index < 0 || index >= existing.length) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { documents: existing.filter((_, i) => i !== index) as any },
+    });
+
+    return res.status(200).json({ message: 'Document deleted' });
+  } catch {
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -184,10 +229,6 @@ export const firebaseVerify = async (req: Request, res: Response) => {
         phone: verifiedPhone,
         requiresRegistration: true,
       });
-    }
-
-    if (!user.is_approved && user.role !== 'Admin') {
-      return res.status(403).json({ message: 'Account pending approval by admin' });
     }
 
     const { accessToken, refreshToken } = await authService.generateTokens(user.id, user.role);

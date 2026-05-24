@@ -11,12 +11,20 @@ import api from '@/src/api/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface UserDoc {
+  name: string;
+  url: string;
+  type: 'pdf' | 'image';
+  uploadedAt: string;
+}
+
 interface Person {
   id: string;
   name: string;
   phone: string;
   email: string | null;
   is_approved: boolean;
+  documents: UserDoc[] | null;
   created_at: string;
 }
 
@@ -192,6 +200,25 @@ function CreateField({
 
 // ─── Detail bottom sheet ─────────────────────────────────────────────────────
 
+function DocItem({ doc, index }: Readonly<{ doc: UserDoc; index: number }>) {
+  return (
+    <View style={s.docRow}>
+      <View style={s.docIconWrap}>
+        <Feather name={doc.type === 'pdf' ? 'file-text' : 'image'} size={16} color={GREEN} />
+      </View>
+      <View style={s.docInfo}>
+        <Text style={s.docName} numberOfLines={1}>{doc.name}</Text>
+        <Text style={s.docDate}>
+          {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+        </Text>
+      </View>
+      <View style={[s.docTypeBadge, doc.type === 'pdf' ? s.docTypePdf : s.docTypeImg]}>
+        <Text style={s.docTypeText}>{doc.type.toUpperCase()}</Text>
+      </View>
+    </View>
+  );
+}
+
 function DetailSheet({
   person, tab, onClose,
   onApprove, onDeactivate, approving, deactivating,
@@ -203,6 +230,7 @@ function DetailSheet({
   const insets = useSafeAreaInsets();
   const { color, label } = TAB_CONFIG[tab];
   const accentColor = person.is_approved ? color : AMBER;
+  const docs = person.documents ?? [];
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -233,6 +261,18 @@ function DetailSheet({
             <InfoRow icon="phone" value={person.phone} />
             {person.email && <InfoRow icon="mail" value={person.email} />}
             <InfoRow icon="calendar" value={`Joined ${formatDate(person.created_at)}`} />
+          </View>
+
+          {/* Documents */}
+          <View style={s.docsBlock}>
+            <Text style={s.docsTitle}>
+              <Feather name="paperclip" size={13} color="#64748b" /> Documents ({docs.length})
+            </Text>
+            {docs.length === 0 ? (
+              <Text style={s.docsEmpty}>No documents uploaded</Text>
+            ) : (
+              docs.map((doc, i) => <DocItem key={`${doc.uploadedAt}-${doc.name}`} doc={doc} index={i} />)
+            )}
           </View>
 
           {/* Actions */}
@@ -695,6 +735,32 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#e2e8f0',
   },
   infoValue: { fontSize: 14, color: '#0a0f1c', fontWeight: '500', flex: 1 },
+  // Documents section in detail sheet
+  docsBlock: {
+    backgroundColor: '#f8fafc', borderRadius: 16, padding: 14,
+    marginBottom: 20,
+  },
+  docsTitle: { fontSize: 12, fontWeight: '700', color: '#64748b', letterSpacing: 0.5, marginBottom: 10 },
+  docsEmpty: { fontSize: 13, color: '#94a3b8', textAlign: 'center', paddingVertical: 8 },
+  docRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#e8edf5',
+  },
+  docIconWrap: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: '#e2e8f0',
+  },
+  docInfo: { flex: 1 },
+  docName: { fontSize: 13, fontWeight: '700', color: '#0a0f1c' },
+  docDate: { fontSize: 11, color: '#94a3b8', marginTop: 1 },
+  docTypeBadge: {
+    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6,
+  },
+  docTypePdf: { backgroundColor: '#fee2e2' },
+  docTypeImg: { backgroundColor: '#e0f2fe' },
+  docTypeText: { fontSize: 10, fontWeight: '800', color: '#475569' },
+
   sheetActions: { flexDirection: 'row', gap: 12 },
   sheetBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

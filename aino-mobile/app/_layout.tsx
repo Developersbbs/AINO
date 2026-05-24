@@ -19,6 +19,40 @@ function roleRoute(role: UserRole): string {
   return '/(owner)/dashboard';
 }
 
+function applyRouting(
+  user: ReturnType<typeof useAuthStore.getState>['user'],
+  seg: string[],
+  replace: (href: any) => void,
+) {
+  const inAuth    = seg[0] === '(auth)';
+  const inPublic  = seg[0] === 'book';
+  const inPending = seg[0] === '(pending)';
+  const inAdmin   = seg[0] === '(admin)';
+  const inAgent   = seg[0] === '(agent)';
+  const inOwner   = seg[0] === '(owner)';
+
+  if (!user) {
+    if (!inAuth && !inPublic) { replace('/(auth)/login'); }
+    return;
+  }
+
+  if (!user.isApproved) {
+    if (!inPending) { replace('/(pending)'); }
+    return;
+  }
+
+  if (inPending || inAuth) {
+    replace(roleRoute(user.role));
+    return;
+  }
+
+  const wrongSection =
+    (inAdmin && user.role !== 'Admin') ||
+    (inAgent && user.role !== 'Agent') ||
+    (inOwner && user.role !== 'Owner');
+  if (wrongSection) { replace(roleRoute(user.role)); }
+}
+
 function AuthGate() {
   const { user, isLoaded, loadFromStorage } = useAuthStore();
   const router = useRouter();
@@ -31,25 +65,7 @@ function AuthGate() {
 
   useEffect(() => {
     if (!isLoaded) return;
-    const seg = segments as string[];
-    const inAuth   = seg[0] === '(auth)';
-    const inPublic = seg[0] === 'book';
-    const inAdmin  = seg[0] === '(admin)';
-    const inAgent  = seg[0] === '(agent)';
-    const inOwner  = seg[0] === '(owner)';
-
-    if (!user && !inAuth && !inPublic) {
-      router.replace('/(auth)/login' as any);
-    } else if (user && inAuth) {
-      router.replace(roleRoute(user.role) as any);
-    } else if (user) {
-      // Enforce role-based section access — prevent Agent/Owner reaching admin screens, etc.
-      const wrongSection =
-        (inAdmin && user.role !== 'Admin') ||
-        (inAgent && user.role !== 'Agent') ||
-        (inOwner && user.role !== 'Owner');
-      if (wrongSection) router.replace(roleRoute(user.role) as any);
-    }
+    applyRouting(user, segments, router.replace);
   }, [user, isLoaded, segments]);
 
   useEffect(() => {

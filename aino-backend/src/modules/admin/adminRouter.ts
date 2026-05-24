@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { protect } from '../../middlewares/auth';
 import { roles } from '../../middlewares/roles';
 import * as adminController from './adminController';
+import * as commissionController from './commissionConfigController';
 
 const router = Router();
 
@@ -19,5 +20,13 @@ router.get('/agents',                   adminController.getAgents);
 router.post('/agents/:id/approve',      adminController.approveAgent);
 router.post('/agents/:id/reject',       adminController.rejectAgent);
 router.post('/agents/:id/deactivate',   adminController.deactivateAgent);
+
+// Commission config
+router.get('/commission-config',                        commissionController.getConfig);
+router.patch('/commission-config/global',               commissionController.patchGlobalRate);
+router.patch('/commission-config/projects/:id',         commissionController.patchProjectOverride);
+router.delete('/commission-config/projects/:id',        commissionController.resetProjectOverride);
+router.patch('/commission-config/agents/:id',           commissionController.patchAgentOverride);
+router.delete('/commission-config/agents/:id',          commissionController.resetAgentOverride);
 
 export default router;

@@ -53,6 +53,23 @@ export const documentUpload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
 });
 
+const USER_DOC_DIR = 'uploads/user-docs';
+fs.mkdirSync(USER_DOC_DIR, { recursive: true });
+
+const userDocStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, USER_DOC_DIR),
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `udoc-${uniqueSuffix}${path.extname(file.originalname)}`);
+  },
+});
+
+export const userDocUpload = multer({
+  storage: userDocStorage,
+  fileFilter: docFilter,
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
 const csvFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
   if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
     cb(null, true);
