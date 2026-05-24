@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
+import { shadow } from '@/src/lib/shadow';
 import api from '@/src/api/client';
 
 interface Booking {
@@ -480,11 +481,7 @@ const s = StyleSheet.create({
     borderRadius: 18,
     paddingHorizontal: 18,
     paddingVertical: 16,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 14,
-    elevation: 3,
+    ...shadow('#0f172a', 4, 0.07, 14, 3),
   },
   cardConfirmed: {
     borderLeftWidth: 4,

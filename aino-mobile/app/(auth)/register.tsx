@@ -18,7 +18,9 @@ import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import { app } from '@/config/firebase';
-import { setConfirmation } from '@/src/lib/phoneAuth';
+import { setConfirmation, setDevOtp } from '@/src/lib/phoneAuth';
+import { shadow } from '@/src/lib/shadow';
+import api from '@/src/api/client';
 
 type Role = 'Agent' | 'Owner';
 
@@ -43,6 +45,24 @@ export default function RegisterScreen() {
     if (!name.trim()) return Alert.alert('Required', 'Full name is required.');
     if (!phone.trim()) return Alert.alert('Required', 'Phone number is required.');
     const fullPhone = '+91' + phone.trim();
+
+    if (Platform.OS === 'web') {
+      try {
+        setLoading(true);
+        const { data } = await api.post('/auth/send-otp', { phone: fullPhone });
+        if (data.devOtp) setDevOtp(data.devOtp);
+        router.push({
+          pathname: '/(auth)/otp' as any,
+          params: { phone: fullPhone, name: name.trim(), email: email.trim(), role, mode: 'web-register' },
+        });
+      } catch (err: any) {
+        Alert.alert('Failed', err.response?.data?.message ?? 'Could not send OTP. Try again.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       setLoading(true);
       const result = await firebase
@@ -339,13 +359,9 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     marginTop: 4,
-    shadowColor: GREEN,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 14,
-    elevation: 6,
+    ...shadow(GREEN, 8, 0.28, 14, 6),
   },
-  btnOff: { opacity: 0.55, shadowOpacity: 0 },
+  btnOff: { opacity: 0.55 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   btnCircle: {
     width: 30,

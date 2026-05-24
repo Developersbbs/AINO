@@ -2,6 +2,31 @@ import prisma from '../../config/database';
 import { UserRole, UnitStatus } from '@prisma/client';
 import { createNotification } from '../notifications/notificationService';
 
+export const createUser = (data: {
+  name: string;
+  phone: string;
+  email?: string;
+  role: 'Agent' | 'Owner';
+}) => {
+  return prisma.user.create({
+    data: {
+      name: data.name,
+      phone: data.phone,
+      email: data.email ?? null,
+      role: data.role,
+      is_approved: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      email: true,
+      is_approved: true,
+      created_at: true,
+    },
+  });
+};
+
 export const getAllAgents = () => {
   return prisma.user.findMany({
     where: { role: UserRole.Agent },

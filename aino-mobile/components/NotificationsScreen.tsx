@@ -12,6 +12,7 @@ import { Feather } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { shadow } from '@/src/lib/shadow';
 import api from '@/src/api/client';
 
 const NAVY = '#1A2744';
@@ -233,11 +234,7 @@ const s = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     gap: 12,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    ...shadow('#0f172a', 2, 0.04, 8, 2),
   },
   cardUnread: {
     borderLeftWidth: 3,

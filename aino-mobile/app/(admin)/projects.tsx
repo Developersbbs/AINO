@@ -20,7 +20,9 @@ import { Feather } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/src/api/client';
 import BulkUploadModal from '@/components/BulkUploadModal';
+import BulkUnitsModal from '@/components/BulkUnitsModal';
 import * as DocumentPicker from 'expo-document-picker';
+import { shadow } from '@/src/lib/shadow';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -61,7 +63,7 @@ interface AddUnitForm {
   nearby_transport: string; distance_main_road: string; booking_notes: string;
 }
 
-type ScreenView = 'list' | 'detail' | 'create' | 'add-unit';
+type ScreenView = 'list' | 'detail' | 'create' | 'add-unit' | 'edit-project';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -251,6 +253,15 @@ function ToggleRow({ label, value, onToggle }: { label: string; value: boolean; 
   );
 }
 
+function StatItem({ value, label }: Readonly<{ value: string; label: string }>) {
+  return (
+    <View style={s.statItem}>
+      <Text style={s.statValue}>{value}</Text>
+      <Text style={s.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
 // ─── Build unit attributes payload ───────────────────────────────────────────
 
 function buildUnitAttributes(f: AddUnitForm): Record<string, unknown> | undefined {
@@ -293,16 +304,26 @@ export default function AdminProjectsScreen() {
   const [view, setView] = useState<ScreenView>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [showBulkUnits, setShowBulkUnits] = useState(false);
   const [statusModal, setStatusModal] = useState<Unit | null>(null);
   const [pendingStatus, setPendingStatus] = useState<UnitStatus>('Available');
   const [reason, setReason] = useState('');
   const [ownerPickerVisible, setOwnerPickerVisible] = useState(false);
+  const [editUnit, setEditUnit] = useState<Unit | null>(null);
+  const [editUnitForm, setEditUnitForm] = useState({ sq_ft: '', price: '', facing: '', road_width: '' });
 
   // Create form
   const [form, setForm] = useState<CreateForm>({
     project_name: '', project_type: '', location: '', rera_number: '', owner_id: '',
     block_phase: '', approval_authority: '', approval_number: '', approval_type: '',
   });
+
+  // Edit project form
+  const [editProjectForm, setEditProjectForm] = useState<CreateForm>({
+    project_name: '', project_type: '', location: '', rera_number: '', owner_id: '',
+    block_phase: '', approval_authority: '', approval_number: '', approval_type: '',
+  });
+  const [editProjectSections, setEditProjectSections] = useState<Set<string>>(new Set(['basic']));
   const [createSections, setCreateSections] = useState<Set<string>>(new Set(['basic']));
 
   // Add unit form
@@ -415,6 +436,20 @@ export default function AdminProjectsScreen() {
     onError: (err: any) => Alert.alert('Error', err.response?.data?.message ?? 'Could not publish project.'),
   });
 
+  const unpublishMutation = useMutation({
+    mutationFn: (projectId: string) => api.post(`/projects/${projectId}/unpublish`),
+    onSuccess: () => {
+      queryClient.setQueryData<ProjectDetail>(['admin-project', selectedId], (old) =>
+        old ? { ...old, is_published: false } : old,
+      );
+      queryClient.setQueryData<Project[]>(['admin-projects'], (old) =>
+        old ? old.map((p) => (p.id === selectedId ? { ...p, is_published: false } : p)) : old,
+      );
+      Alert.alert('Unpublished', 'Project is now hidden from agents and owners.');
+    },
+    onError: (err: any) => Alert.alert('Error', err.response?.data?.message ?? 'Could not unpublish project.'),
+  });
+
   const addUnitMutation = useMutation({
     mutationFn: (uf: AddUnitForm) =>
       api.post('/units', {
@@ -456,6 +491,47 @@ export default function AdminProjectsScreen() {
     onError: (err: any) => Alert.alert('Error', err.response?.data?.message ?? 'Could not delete document.'),
   });
 
+  const editProjectMutation = useMutation({
+    mutationFn: (data: CreateForm) => {
+      const cfg: Record<string, string> = {};
+      if (data.block_phase) cfg.block = data.block_phase;
+      if (data.approval_authority) cfg.approvalAuthority = data.approval_authority;
+      if (data.approval_number) cfg.approvalNumber = data.approval_number;
+      if (data.approval_type) cfg.approvalType = data.approval_type;
+      return api.patch(`/projects/${selectedId}`, {
+        name: data.project_name,
+        type: data.project_type,
+        location: data.location,
+        reraNumber: data.rera_number || null,
+        ...(Object.keys(cfg).length > 0 && { configAttributes: cfg }),
+      });
+    },
+    onSuccess: (res) => {
+      const updated = res.data.data;
+      queryClient.setQueryData<ProjectDetail>(['admin-project', selectedId], (old) =>
+        old ? { ...old, ...updated } : old,
+      );
+      queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
+      setView('detail');
+      Alert.alert('Saved', 'Project updated successfully.');
+    },
+    onError: (err: any) => Alert.alert('Error', err.response?.data?.message ?? 'Could not update project.'),
+  });
+
+  const editUnitMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { sqFt: number; price: number; facing?: string; roadWidth?: number } }) =>
+      api.patch(`/units/${id}`, data),
+    onSuccess: (res) => {
+      const updated = res.data.data;
+      queryClient.setQueryData<ProjectDetail>(['admin-project', selectedId], (old) =>
+        old ? { ...old, units: old.units.map((u) => u.id === updated.id ? { ...u, ...updated } : u) } : old,
+      );
+      setEditUnit(null);
+      Alert.alert('Saved', 'Plot updated successfully.');
+    },
+    onError: (err: any) => Alert.alert('Error', err.response?.data?.message ?? 'Could not update plot.'),
+  });
+
   const handlePickDocument = async () => {
     const result = await DocumentPicker.getDocumentAsync({
       type: ['image/*', 'application/pdf'],
@@ -484,6 +560,40 @@ export default function AdminProjectsScreen() {
     if (!form.project_type.trim()) return Alert.alert('Required', 'Project type is required.');
     if (!form.location.trim()) return Alert.alert('Required', 'Location is required.');
     createMutation.mutate(form);
+  };
+
+  const handleEditProject = () => {
+    if (!editProjectForm.project_name.trim()) return Alert.alert('Required', 'Project name is required.');
+    if (!editProjectForm.project_type.trim()) return Alert.alert('Required', 'Project type is required.');
+    if (!editProjectForm.location.trim()) return Alert.alert('Required', 'Location is required.');
+    editProjectMutation.mutate(editProjectForm);
+  };
+
+  const handleEditUnit = () => {
+    if (!editUnit) return;
+    const sqFt = Number(editUnitForm.sq_ft);
+    const price = Number(editUnitForm.price);
+    if (isNaN(sqFt) || sqFt <= 0) return Alert.alert('Invalid', 'Enter a valid size (sq ft).');
+    if (isNaN(price) || price <= 0) return Alert.alert('Invalid', 'Enter a valid price.');
+    editUnitMutation.mutate({
+      id: editUnit.id,
+      data: {
+        sqFt,
+        price,
+        ...(editUnitForm.facing && { facing: editUnitForm.facing }),
+        ...(editUnitForm.road_width && { roadWidth: Number(editUnitForm.road_width) }),
+      },
+    });
+  };
+
+  const openEditUnit = (unit: Unit) => {
+    setEditUnitForm({
+      sq_ft: String(unit.sq_ft),
+      price: String(unit.price),
+      facing: unit.facing ?? '',
+      road_width: '',
+    });
+    setEditUnit(unit);
   };
 
   // Computed
@@ -807,16 +917,222 @@ export default function AdminProjectsScreen() {
     );
   }
 
+  // ── EDIT PROJECT VIEW ─────────────────────────────────────────────────────
+
+  if (view === 'edit-project') {
+    const ep = editProjectForm;
+    const setEp = (patch: Partial<CreateForm>) => setEditProjectForm((p) => ({ ...p, ...patch }));
+
+    return (
+      <SafeAreaView style={s.safe} edges={['top']}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={s.pageHeader}>
+            <TouchableOpacity onPress={() => setView('detail')} style={s.backBtn}>
+              <Feather name="arrow-left" size={20} color="#0a0f1c" />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={s.pageTitle}>Edit Project</Text>
+            </View>
+            <TouchableOpacity
+              style={[s.saveHeaderBtn, editProjectMutation.isPending && s.btnDisabled]}
+              onPress={handleEditProject}
+              disabled={editProjectMutation.isPending}
+              activeOpacity={0.8}
+            >
+              {editProjectMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={s.saveHeaderBtnText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+            <SectionHeader title="BASIC INFORMATION" isOpen={editProjectSections.has('basic')} onToggle={() => setEditProjectSections((prev) => { const n = new Set(prev); n.has('basic') ? n.delete('basic') : n.add('basic'); return n; })} />
+            {editProjectSections.has('basic') && (
+              <View style={f.sectionBody}>
+                <FormField label="PROJECT NAME" value={ep.project_name} onChangeText={(v) => setEp({ project_name: v })} placeholder="e.g. Sunset Heights" />
+                <Text style={f.subLabel}>PROJECT TYPE</Text>
+                <ChipSelector options={PLOT_TYPES} selected={ep.project_type} onSelect={(v) => setEp({ project_type: v })} />
+                {!PLOT_TYPES.includes(ep.project_type) && ep.project_type ? (
+                  <TextInput style={[f.textInput, { marginTop: 8 }]} placeholder="Custom type…" placeholderTextColor="#94a3b8" value={ep.project_type} onChangeText={(v) => setEp({ project_type: v })} />
+                ) : null}
+                <FormField label="LOCATION" value={ep.location} onChangeText={(v) => setEp({ location: v })} placeholder="City, State" />
+                <FormField label="RERA NUMBER" value={ep.rera_number} onChangeText={(v) => setEp({ rera_number: v })} placeholder="RERA/KN/…" optional />
+              </View>
+            )}
+
+            <SectionHeader title="APPROVAL DETAILS" isOpen={editProjectSections.has('approval')} onToggle={() => setEditProjectSections((prev) => { const n = new Set(prev); n.has('approval') ? n.delete('approval') : n.add('approval'); return n; })} hint="Block, Authority, LP Number" />
+            {editProjectSections.has('approval') && (
+              <View style={f.sectionBody}>
+                <FormField label="BLOCK / PHASE" value={ep.block_phase} onChangeText={(v) => setEp({ block_phase: v })} placeholder="e.g. Phase 1, Block A" optional />
+                <FormField label="APPROVAL AUTHORITY" value={ep.approval_authority} onChangeText={(v) => setEp({ approval_authority: v })} placeholder="e.g. HMDA, DTCP, Panchayat" optional />
+                <View style={f.row}>
+                  <View style={{ flex: 1 }}>
+                    <FormField label="APPROVAL NUMBER" value={ep.approval_number} onChangeText={(v) => setEp({ approval_number: v })} placeholder="e.g. LP/TS/001/2024" optional />
+                  </View>
+                  <View style={{ width: 12 }} />
+                  <View style={{ flex: 1 }}>
+                    <FormField label="APPROVAL TYPE" value={ep.approval_type} onChangeText={(v) => setEp({ approval_type: v })} placeholder="e.g. LP, LRS, NA" optional />
+                  </View>
+                </View>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[s.submitBtn, editProjectMutation.isPending && s.btnDisabled]}
+              onPress={handleEditProject}
+              disabled={editProjectMutation.isPending}
+              activeOpacity={0.85}
+            >
+              {editProjectMutation.isPending ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={s.submitBtnText}>Save Changes</Text>
+                  <Feather name="check" size={18} color="#fff" />
+                </>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
   // ── DETAIL VIEW ───────────────────────────────────────────────────────────
 
   if (view === 'detail') {
     const project = detailQuery.data;
     const units = project?.units ?? [];
-    const stats = {
+    const heroStats = deriveStats(units);
+    const amenities = deriveAmenities(units);
+    const tags = project ? deriveTags(project) : [];
+    const cfg = project?.config_attributes ?? null;
+    const approval = getApprovalLabel(cfg);
+    const statusCounts = {
       available: units.filter((u) => u.status === 'Available').length,
       booked: units.filter((u) => u.status === 'Booked').length,
       sold: units.filter((u) => u.status === 'Sold').length,
     };
+
+    const detailHeader = project ? (
+      <View>
+        <View style={s.hero}>
+          {!!approval && (
+            <View style={s.approvalBadge}>
+              <Text style={s.approvalBadgeText}>{approval}</Text>
+            </View>
+          )}
+          <Text style={s.heroName}>{project.project_name}</Text>
+          <View style={s.heroMetaRow}>
+            <Feather name="map-pin" size={13} color="rgba(255,255,255,0.7)" />
+            <Text style={s.heroMetaText}>{project.location}</Text>
+          </View>
+          {!!project.rera_number && (
+            <View style={s.heroMetaRow}>
+              <Feather name="shield" size={13} color="rgba(255,255,255,0.7)" />
+              <Text style={s.heroMetaText}>RERA: {project.rera_number}</Text>
+            </View>
+          )}
+          {tags.length > 0 && (
+            <View style={s.tagsRow}>
+              {tags.map((tag) => (
+                <View key={tag} style={s.tag}>
+                  <Text style={s.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={s.statsRow}>
+          <StatItem value={String(heroStats.total)} label="Total Plots" />
+          <View style={s.statDivider} />
+          <StatItem value={String(heroStats.available)} label="Available" />
+          <View style={s.statDivider} />
+          <StatItem
+            value={heroStats.perSqft > 0 ? `₹${heroStats.perSqft.toLocaleString('en-IN')}` : '—'}
+            label="Per sqft"
+          />
+        </View>
+
+        {project.is_published ? (
+          <TouchableOpacity
+            style={[s.unpublishBanner, unpublishMutation.isPending && s.btnDisabled]}
+            onPress={() =>
+              Alert.alert(
+                'Unpublish Project',
+                'This will hide the project from agents and owners. Continue?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Unpublish', style: 'destructive', onPress: () => selectedId && unpublishMutation.mutate(selectedId) },
+                ],
+              )
+            }
+            disabled={unpublishMutation.isPending}
+            activeOpacity={0.85}
+          >
+            {unpublishMutation.isPending ? (
+              <ActivityIndicator size="small" color="#ef4444" />
+            ) : (
+              <>
+                <Feather name="eye-off" size={15} color="#ef4444" />
+                <Text style={s.unpublishBannerText}>Unpublish Project</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[s.publishBanner, publishMutation.isPending && s.btnDisabled]}
+            onPress={() => selectedId && publishMutation.mutate(selectedId)}
+            disabled={publishMutation.isPending}
+            activeOpacity={0.85}
+          >
+            {publishMutation.isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Feather name="globe" size={15} color="#fff" />
+                <Text style={s.publishBannerText}>Publish Project</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {amenities.length > 0 && (
+          <View style={s.sectionCard}>
+            <Text style={s.sectionCardTitle}>AMENITIES</Text>
+            <View style={s.amenitiesDisplayGrid}>
+              {amenities.map((a) => (
+                <View key={a.label} style={s.amenityDisplayItem}>
+                  <View style={[s.amenityDisplayIcon, { backgroundColor: `${a.color}18` }]}>
+                    <Feather name={a.icon} size={16} color={a.color} />
+                  </View>
+                  <Text style={s.amenityDisplayLabel}>{a.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        <View style={s.statusBar}>
+          {([
+            { label: 'Available', count: statusCounts.available, color: STATUS_COLOR.Available },
+            { label: 'Booked', count: statusCounts.booked, color: STATUS_COLOR.Booked },
+            { label: 'Sold', count: statusCounts.sold, color: STATUS_COLOR.Sold },
+          ] as const).map(({ label, count, color }) => (
+            <View key={label} style={s.statusBarItem}>
+              <View style={[s.statusDot, { backgroundColor: color }]} />
+              <Text style={s.statusBarLabel}>{label}</Text>
+              <Text style={[s.statusBarCount, { color }]}>{count}</Text>
+            </View>
+          ))}
+        </View>
+        <Text style={s.hintText}>Tap to edit · Long-press to change status</Text>
+      </View>
+    ) : null;
 
     return (
       <SafeAreaView style={s.safe} edges={['top']}>
@@ -824,9 +1140,36 @@ export default function AdminProjectsScreen() {
           <TouchableOpacity onPress={() => setView('list')} style={s.backBtn}>
             <Feather name="arrow-left" size={20} color="#0a0f1c" />
           </TouchableOpacity>
-          <Text style={s.pageTitle} numberOfLines={1}>
+          <Text style={[s.pageTitle, { flex: 1 }]} numberOfLines={1}>
             {detailQuery.isLoading ? 'Loading…' : project?.project_name ?? 'Project'}
           </Text>
+          <TouchableOpacity
+            style={s.iconBtn}
+            onPress={() => {
+              if (!detailQuery.data) return;
+              const p = detailQuery.data;
+              const cfg = (p.config_attributes ?? {}) as Record<string, unknown>;
+              setEditProjectForm({
+                project_name: p.project_name,
+                project_type: p.project_type,
+                location: p.location,
+                rera_number: p.rera_number ?? '',
+                owner_id: '',
+                block_phase: String(cfg.block ?? ''),
+                approval_authority: String(cfg.approvalAuthority ?? ''),
+                approval_number: String(cfg.approvalNumber ?? ''),
+                approval_type: String(cfg.approvalType ?? ''),
+              });
+              setEditProjectSections(new Set(['basic']));
+              setView('edit-project');
+            }}
+            activeOpacity={0.7}
+          >
+            <Feather name="edit-2" size={17} color={GREEN} />
+          </TouchableOpacity>
+          <TouchableOpacity style={s.iconBtn} onPress={() => setShowBulkUnits(true)} activeOpacity={0.7}>
+            <Feather name="upload" size={17} color={GREEN} />
+          </TouchableOpacity>
           <TouchableOpacity style={s.addUnitBtn} onPress={() => setView('add-unit')} activeOpacity={0.7}>
             <Feather name="plus" size={16} color={GREEN} />
             <Text style={s.addUnitBtnText}>Add Plot</Text>
@@ -842,128 +1185,165 @@ export default function AdminProjectsScreen() {
         )}
 
         {project && (
-          <>
-            <View style={s.statusBar}>
-              {([
-                { label: 'Available', count: stats.available, color: STATUS_COLOR.Available },
-                { label: 'Booked', count: stats.booked, color: STATUS_COLOR.Booked },
-                { label: 'Sold', count: stats.sold, color: STATUS_COLOR.Sold },
-              ] as const).map(({ label, count, color }) => (
-                <View key={label} style={s.statusBarItem}>
-                  <View style={[s.statusDot, { backgroundColor: color }]} />
-                  <Text style={s.statusBarLabel}>{label}</Text>
-                  <Text style={[s.statusBarCount, { color }]}>{count}</Text>
-                </View>
-              ))}
-            </View>
-
-            {!project.is_published && (
-              <TouchableOpacity
-                style={[s.publishBanner, publishMutation.isPending && s.btnDisabled]}
-                onPress={() => selectedId && publishMutation.mutate(selectedId)}
-                disabled={publishMutation.isPending}
-                activeOpacity={0.85}
-              >
-                {publishMutation.isPending ? <ActivityIndicator size="small" color="#fff" /> : (
-                  <><Feather name="globe" size={15} color="#fff" /><Text style={s.publishBannerText}>Publish Project</Text></>
-                )}
-              </TouchableOpacity>
-            )}
-
-            <Text style={s.hintText}>Long-press a plot to change its status</Text>
-
-            <FlatList
-              data={units}
-              keyExtractor={(u) => u.id}
-              numColumns={2}
-              columnWrapperStyle={s.colWrap}
-              contentContainerStyle={s.unitList}
-              ListEmptyComponent={
-                <View style={s.center}>
-                  <Feather name="grid" size={40} color="#cbd5e1" />
-                  <Text style={s.centerText}>No plots added yet</Text>
-                  <TouchableOpacity style={s.retryBtn} onPress={() => setView('add-unit')}>
-                    <Text style={s.retryText}>Add First Plot</Text>
+          <FlatList
+            data={units}
+            keyExtractor={(u) => u.id}
+            numColumns={2}
+            columnWrapperStyle={s.colWrap}
+            contentContainerStyle={s.unitList}
+            ListHeaderComponent={detailHeader}
+            ListEmptyComponent={
+              <View style={s.center}>
+                <Feather name="grid" size={40} color="#cbd5e1" />
+                <Text style={s.centerText}>No plots added yet</Text>
+                <TouchableOpacity style={s.retryBtn} onPress={() => setView('add-unit')}>
+                  <Text style={s.retryText}>Add First Plot</Text>
+                </TouchableOpacity>
+              </View>
+            }
+            ListFooterComponent={
+              <View style={s.docsSection}>
+                <View style={s.docsSectionHeader}>
+                  <Text style={s.docsSectionTitle}>DOCUMENTS</Text>
+                  <TouchableOpacity
+                    style={[s.addDocBtn, uploadDocMutation.isPending && s.btnDisabled]}
+                    onPress={handlePickDocument}
+                    disabled={uploadDocMutation.isPending}
+                    activeOpacity={0.8}
+                  >
+                    {uploadDocMutation.isPending ? (
+                      <ActivityIndicator size="small" color={GREEN} />
+                    ) : (
+                      <>
+                        <Feather name="upload" size={14} color={GREEN} />
+                        <Text style={s.addDocBtnText}>Upload</Text>
+                      </>
+                    )}
                   </TouchableOpacity>
                 </View>
-              }
-              ListFooterComponent={
-                <View style={s.docsSection}>
-                  <View style={s.docsSectionHeader}>
-                    <Text style={s.docsSectionTitle}>DOCUMENTS</Text>
-                    <TouchableOpacity
-                      style={[s.addDocBtn, uploadDocMutation.isPending && s.btnDisabled]}
-                      onPress={handlePickDocument}
-                      disabled={uploadDocMutation.isPending}
-                      activeOpacity={0.8}
-                    >
-                      {uploadDocMutation.isPending ? (
-                        <ActivityIndicator size="small" color={GREEN} />
-                      ) : (
-                        <>
-                          <Feather name="upload" size={14} color={GREEN} />
-                          <Text style={s.addDocBtnText}>Upload</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  </View>
 
-                  {(project.documents ?? []).length === 0 ? (
-                    <View style={s.docsEmpty}>
-                      <Feather name="file" size={28} color="#cbd5e1" />
-                      <Text style={s.docsEmptyText}>No documents uploaded yet</Text>
-                    </View>
-                  ) : (
-                    (project.documents ?? []).map((doc, i) => (
-                      <View key={i} style={s.docRow}>
-                        <View style={[s.docIcon, doc.type === 'pdf' ? s.docIconPdf : s.docIconImg]}>
-                          <Feather
-                            name={doc.type === 'pdf' ? 'file-text' : 'image'}
-                            size={18}
-                            color={doc.type === 'pdf' ? '#ef4444' : '#3b82f6'}
-                          />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.docName} numberOfLines={1}>{doc.name}</Text>
-                          <Text style={s.docDate}>
-                            {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          style={s.docDeleteBtn}
-                          onPress={() =>
-                            Alert.alert('Delete Document', `Remove "${doc.name}"?`, [
-                              { text: 'Cancel', style: 'cancel' },
-                              { text: 'Delete', style: 'destructive', onPress: () => deleteDocMutation.mutate(i) },
-                            ])
-                          }
-                        >
-                          <Feather name="trash-2" size={16} color="#ef4444" />
-                        </TouchableOpacity>
-                      </View>
-                    ))
-                  )}
-                </View>
-              }
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[s.unitCard, { borderColor: STATUS_COLOR[item.status], backgroundColor: STATUS_BG[item.status] }]}
-                  onLongPress={() => { setPendingStatus(item.status); setStatusModal(item); }}
-                  delayLongPress={400}
-                  activeOpacity={0.8}
-                >
-                  <View style={s.unitCardTop}>
-                    <Text style={s.unitNumber}>#{item.unit_number}</Text>
-                    <View style={[s.statusDot, { backgroundColor: STATUS_COLOR[item.status] }]} />
+                {(project.documents ?? []).length === 0 ? (
+                  <View style={s.docsEmpty}>
+                    <Feather name="file" size={28} color="#cbd5e1" />
+                    <Text style={s.docsEmptyText}>No documents uploaded yet</Text>
                   </View>
-                  <Text style={s.unitPrice}>{formatINR(item.price)}</Text>
-                  <Text style={s.unitSqft}>{item.sq_ft.toLocaleString()} sqft</Text>
-                  {item.facing ? <Text style={s.unitFacing}>{item.facing}</Text> : null}
-                </TouchableOpacity>
-              )}
-            />
-          </>
+                ) : (
+                  (project.documents ?? []).map((doc, i) => (
+                    <View key={doc.name} style={s.docRow}>
+                      <View style={[s.docIcon, doc.type === 'pdf' ? s.docIconPdf : s.docIconImg]}>
+                        <Feather
+                          name={doc.type === 'pdf' ? 'file-text' : 'image'}
+                          size={18}
+                          color={doc.type === 'pdf' ? '#ef4444' : '#3b82f6'}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.docName} numberOfLines={1}>{doc.name}</Text>
+                        <Text style={s.docDate}>
+                          {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={s.docDeleteBtn}
+                        onPress={() =>
+                          Alert.alert('Delete Document', `Remove "${doc.name}"?`, [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Delete', style: 'destructive', onPress: () => deleteDocMutation.mutate(i) },
+                          ])
+                        }
+                      >
+                        <Feather name="trash-2" size={16} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
+              </View>
+            }
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[s.unitCard, { borderColor: STATUS_COLOR[item.status], backgroundColor: STATUS_BG[item.status] }]}
+                onPress={() => openEditUnit(item)}
+                onLongPress={() => { setPendingStatus(item.status); setStatusModal(item); }}
+                delayLongPress={400}
+                activeOpacity={0.8}
+              >
+                <View style={s.unitCardTop}>
+                  <Text style={s.unitNumber}>#{item.unit_number}</Text>
+                  <View style={[s.statusDot, { backgroundColor: STATUS_COLOR[item.status] }]} />
+                </View>
+                <Text style={s.unitPrice}>{formatINR(item.price)}</Text>
+                <Text style={s.unitSqft}>{item.sq_ft.toLocaleString()} sqft</Text>
+                {item.facing ? <Text style={s.unitFacing}>{item.facing}</Text> : null}
+              </TouchableOpacity>
+            )}
+          />
         )}
+
+        <BulkUnitsModal
+          visible={showBulkUnits}
+          projectId={selectedId ?? ''}
+          projectName={project?.project_name ?? ''}
+          onClose={() => setShowBulkUnits(false)}
+        />
+
+        {/* Edit unit modal */}
+        <Modal visible={editUnit !== null} transparent animationType="slide" onRequestClose={() => setEditUnit(null)}>
+          <View style={s.modalOuter}>
+            <Pressable style={s.backdrop} onPress={() => setEditUnit(null)} />
+            <View style={[s.sheet, { paddingBottom: insets.bottom + 24 }]}>
+              <View style={s.sheetHandle} />
+              <Text style={s.sheetTitle}>Edit Plot</Text>
+              <Text style={s.sheetSub}>#{editUnit?.unit_number}</Text>
+              <View style={f.row}>
+                <View style={{ flex: 1 }}>
+                  <FormField
+                    label="SIZE (SQ.FT)"
+                    value={editUnitForm.sq_ft}
+                    onChangeText={(v) => setEditUnitForm((p) => ({ ...p, sq_ft: v }))}
+                    placeholder="e.g. 1200"
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={{ width: 12 }} />
+                <View style={{ flex: 1 }}>
+                  <FormField
+                    label="TOTAL PRICE (₹)"
+                    value={editUnitForm.price}
+                    onChangeText={(v) => setEditUnitForm((p) => ({ ...p, price: v }))}
+                    placeholder="e.g. 5000000"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+              <Text style={f.subLabel}>FACING DIRECTION</Text>
+              <ChipSelector
+                options={FACING_OPTIONS}
+                selected={editUnitForm.facing}
+                onSelect={(v) => setEditUnitForm((p) => ({ ...p, facing: v }))}
+              />
+              <FormField
+                label="ROAD WIDTH (ft)"
+                value={editUnitForm.road_width}
+                onChangeText={(v) => setEditUnitForm((p) => ({ ...p, road_width: v }))}
+                placeholder="e.g. 30"
+                keyboardType="numeric"
+                optional
+              />
+              <TouchableOpacity
+                style={[s.submitBtn, editUnitMutation.isPending && s.btnDisabled]}
+                onPress={handleEditUnit}
+                disabled={editUnitMutation.isPending}
+                activeOpacity={0.85}
+              >
+                {editUnitMutation.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={s.submitBtnText}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Status change modal */}
         <Modal visible={statusModal !== null} transparent animationType="slide" onRequestClose={() => setStatusModal(null)}>
@@ -1210,12 +1590,17 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: GREEN, backgroundColor: '#edfaf4',
   },
   addUnitBtnText: { fontSize: 13, fontWeight: '700', color: GREEN },
+  iconBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: GREEN, backgroundColor: '#edfaf4',
+  },
   pageCount: { fontSize: 13, color: '#94a3b8' },
   list: { padding: 16, gap: 12, paddingBottom: 100 },
   formScroll: { paddingBottom: 48 },
   projectCard: {
     backgroundColor: '#fff', borderRadius: 18, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+    ...shadow('#000', 3, 0.05, 10, 2),
   },
   projectCardBody: { flexDirection: 'row', alignItems: 'flex-start', padding: 18 },
   projectCardLeft: { flex: 1, gap: 4 },
@@ -1232,7 +1617,7 @@ const s = StyleSheet.create({
   fab: {
     position: 'absolute', right: 24, width: 56, height: 56, borderRadius: 28,
     backgroundColor: GREEN, alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#1e3c6e', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8,
+    ...shadow('#1e3c6e', 4, 0.4, 10, 8),
   },
   statusBar: {
     flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 12,
@@ -1257,6 +1642,13 @@ const s = StyleSheet.create({
     borderRadius: 14, backgroundColor: GREEN,
   },
   publishBannerText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  unpublishBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginHorizontal: 16, marginTop: 12, marginBottom: 4, paddingVertical: 13,
+    borderRadius: 14, backgroundColor: '#fef2f2',
+    borderWidth: 1.5, borderColor: '#fecaca',
+  },
+  unpublishBannerText: { color: '#ef4444', fontSize: 14, fontWeight: '700' },
   modalOuter: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
@@ -1287,8 +1679,7 @@ const s = StyleSheet.create({
   docsSection: {
     marginHorizontal: 12, marginTop: 8, marginBottom: 24,
     backgroundColor: '#fff', borderRadius: 18,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    ...shadow('#000', 2, 0.04, 8, 2),
     overflow: 'hidden',
   },
   docsSectionHeader: {
@@ -1324,4 +1715,54 @@ const s = StyleSheet.create({
     width: 34, height: 34, borderRadius: 10,
     backgroundColor: '#fef2f2', alignItems: 'center', justifyContent: 'center',
   },
+
+  // ── Hero ──
+  hero: {
+    backgroundColor: NAVY,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 28,
+  },
+  heroName: { fontSize: 26, fontWeight: '900', color: '#fff', marginBottom: 8 },
+  heroMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  heroMetaText: { fontSize: 13, color: 'rgba(255,255,255,0.75)' },
+  approvalBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 20, marginBottom: 12,
+  },
+  approvalBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff', letterSpacing: 0.5 },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  tag: {
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  tagText: { fontSize: 12, color: '#fff', fontWeight: '600' },
+
+  // ── Stats row ──
+  statsRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', paddingVertical: 18,
+    borderBottomWidth: 1, borderBottomColor: '#e8edf5',
+  },
+  statItem: { flex: 1, alignItems: 'center' },
+  statValue: { fontSize: 22, fontWeight: '900', color: GOLD, marginBottom: 2 },
+  statLabel: { fontSize: 11, color: '#94a3b8', fontWeight: '600' },
+  statDivider: { width: 1, height: 36, backgroundColor: '#e8edf5' },
+
+  // ── Amenities display ──
+  sectionCard: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 20, paddingVertical: 16,
+    borderBottomWidth: 1, borderBottomColor: '#e8edf5',
+  },
+  sectionCardTitle: { fontSize: 11, fontWeight: '800', color: '#0a0f1c', letterSpacing: 0.8, marginBottom: 14 },
+  amenitiesDisplayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  amenityDisplayItem: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '46%' },
+  amenityDisplayIcon: {
+    width: 32, height: 32, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  amenityDisplayLabel: { fontSize: 12, color: '#374151', fontWeight: '500', flex: 1 },
 });

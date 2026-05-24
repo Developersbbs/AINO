@@ -29,4 +29,24 @@ router.post(
 // Confirm creation from previewed rows
 router.post('/projects/create', ...adminOnly, bulkController.createProjects);
 
+// Parse units CSV → preview rows (no DB write)
+router.post(
+  '/units/parse',
+  ...adminOnly,
+  (req: Request, res: Response, next: NextFunction) => {
+    csvUpload.single('file')(req, res, (err: any) => {
+      if (err instanceof multer.MulterError) {
+        const msg = err.code === 'LIMIT_FILE_SIZE' ? 'File exceeds 2 MB limit' : err.message;
+        return apiResponse(res, 400, null, msg);
+      }
+      if (err) return apiResponse(res, 400, null, err.message);
+      next();
+    });
+  },
+  bulkController.parseUnits,
+);
+
+// Confirm unit creation from previewed rows
+router.post('/units/create', ...adminOnly, bulkController.createUnits);
+
 export default router;

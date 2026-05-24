@@ -20,6 +20,7 @@ router.get('/:id/units', publicRateLimit, projectController.getUnits);
 router.post('/',                   ...adminOnly, projectController.createProject);
 router.patch('/:id',               ...adminOnly, projectController.updateProject);
 router.post('/:id/publish',        ...adminOnly, projectController.publishProject);
+router.post('/:id/unpublish',      ...adminOnly, projectController.unpublishProject);
 router.post('/:id/assign-owner',   ...adminOnly, projectController.assignOwner);
 
 // Layout upload — multer errors returned as JSON, not HTML

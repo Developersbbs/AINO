@@ -14,6 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useAuthStore } from '@/src/stores/useAuthStore';
 import api from '@/src/api/client';
+import { shadow } from '@/src/lib/shadow';
 
 const GREEN = '#1e3c6e';
 const RED = '#dc2626';
@@ -257,7 +258,7 @@ const s = StyleSheet.create({
   },
   menuGroup: {
     backgroundColor: '#fff', borderRadius: 18,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+    ...shadow('#000', 3, 0.05, 10, 2),
     overflow: 'hidden',
   },
   separator: { height: 1, backgroundColor: '#f1f5f9', marginLeft: 60 },

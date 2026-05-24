@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { shadow } from '@/src/lib/shadow';
 import api from '@/src/api/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -456,7 +457,7 @@ const s = StyleSheet.create({
   list:     { padding: 16, gap: 14, paddingBottom: 40 },
   card: {
     backgroundColor: '#fff', borderRadius: 20, padding: 18,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 2,
+    ...shadow('#000', 3, 0.06, 12, 2),
   },
   cardRow:      { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
   cardLeft:     { flex: 1 },

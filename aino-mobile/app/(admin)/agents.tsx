@@ -6,6 +6,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { shadow } from '@/src/lib/shadow';
 import api from '@/src/api/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -70,6 +71,122 @@ function PersonCard({
         </Text>
       </View>
     </TouchableOpacity>
+  );
+}
+
+// ─── Create bottom sheet ─────────────────────────────────────────────────────
+
+function CreateSheet({
+  tab, onClose, onSubmit, loading,
+}: {
+  tab: Tab; onClose: () => void;
+  onSubmit: (data: { name: string; phone: string; email: string }) => void;
+  loading: boolean;
+}) {
+  const insets = useSafeAreaInsets();
+  const { color, noun } = TAB_CONFIG[tab];
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [focused, setFocused] = useState<string | null>(null);
+
+  const canSubmit = name.trim().length > 0 && phone.trim().length === 10;
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <View style={s.overlay}>
+        <Pressable style={s.backdrop} onPress={onClose} />
+        <View style={[s.sheet, { paddingBottom: insets.bottom + 24 }]}>
+          <View style={s.sheetHandle} />
+
+          <View style={s.createHeader}>
+            <View style={[s.createIconWrap, { backgroundColor: color + '14' }]}>
+              <Feather name={TAB_CONFIG[tab].icon} size={20} color={color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.createTitle}>
+                Add {noun.charAt(0).toUpperCase() + noun.slice(1)}
+              </Text>
+              <Text style={s.createSub}>Account is immediately active</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Feather name="x" size={20} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+
+          <CreateField
+            icon="user" label="FULL NAME" placeholder="John Doe"
+            value={name} onChangeText={setName}
+            focused={focused === 'name'} onFocus={() => setFocused('name')} onBlur={() => setFocused(null)}
+            autoFocus
+          />
+          <CreateField
+            icon="phone" label="PHONE (+91)" placeholder="XXXXX XXXXX"
+            value={phone} onChangeText={(v) => setPhone(v.replace(/\D/g, '').slice(0, 10))}
+            keyboardType="phone-pad"
+            focused={focused === 'phone'} onFocus={() => setFocused('phone')} onBlur={() => setFocused(null)}
+          />
+          <CreateField
+            icon="mail" label="EMAIL (optional)" placeholder="john@example.com"
+            value={email} onChangeText={setEmail}
+            keyboardType="email-address" autoCapitalize="none"
+            focused={focused === 'email'} onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
+          />
+
+          <TouchableOpacity
+            style={[s.createBtn, { backgroundColor: color }, (!canSubmit || loading) && s.btnDisabled]}
+            onPress={() => onSubmit({ name: name.trim(), phone: '+91' + phone.trim(), email: email.trim() })}
+            disabled={!canSubmit || loading}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Feather name="user-plus" size={16} color="#fff" />
+                <Text style={s.createBtnText}>
+                  Create {noun.charAt(0).toUpperCase() + noun.slice(1)}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function CreateField({
+  icon, label, placeholder, value, onChangeText, keyboardType, autoCapitalize, autoFocus,
+  focused, onFocus, onBlur,
+}: {
+  icon: React.ComponentProps<typeof Feather>['name'];
+  label: string; placeholder: string; value: string;
+  onChangeText: (v: string) => void;
+  keyboardType?: any; autoCapitalize?: any; autoFocus?: boolean;
+  focused: boolean; onFocus: () => void; onBlur: () => void;
+}) {
+  return (
+    <View style={s.cfGroup}>
+      <Text style={s.cfLabel}>{label}</Text>
+      <View style={[s.cfRow, focused && s.cfRowFocused]}>
+        <View style={s.cfIcon}>
+          <Feather name={icon} size={15} color={focused ? GREEN : '#94a3b8'} />
+        </View>
+        <TextInput
+          style={s.cfInput}
+          placeholder={placeholder}
+          placeholderTextColor="#94a3b8"
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize ?? 'words'}
+          autoFocus={autoFocus}
+          onFocus={onFocus}
+          onBlur={onBlur}
+        />
+      </View>
+    </View>
   );
 }
 
@@ -177,6 +294,7 @@ export default function TeamScreen() {
   const [tab, setTab] = useState<Tab>('agents');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<{ person: Person; tab: Tab } | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   // ── Queries (both always active for instant switching) ──────────────────────
@@ -263,6 +381,19 @@ export default function TeamScreen() {
   const approveMut    = tab === 'agents' ? agentApprove    : ownerApprove;
   const deactivateMut = tab === 'agents' ? agentDeactivate : ownerDeactivate;
 
+  const createMut = useMutation({
+    mutationFn: (body: { name: string; phone: string; email: string }) =>
+      api.post(tab === 'agents' ? '/admin/agents' : '/admin/owners', body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [tab === 'agents' ? 'admin-agents' : 'admin-owners'] });
+      setShowCreate(false);
+      Alert.alert('Created', `${TAB_CONFIG[tab].noun.charAt(0).toUpperCase() + TAB_CONFIG[tab].noun.slice(1)} added successfully.`);
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err.response?.data?.message ?? 'Could not create. Try again.');
+    },
+  });
+
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
   const handleRefresh = async () => {
@@ -313,6 +444,13 @@ export default function TeamScreen() {
             )}
           </View>
         </View>
+        <TouchableOpacity
+          style={[s.addBtn, { backgroundColor: TAB_CONFIG[tab].color }]}
+          onPress={() => setShowCreate(true)}
+          activeOpacity={0.8}
+        >
+          <Feather name="plus" size={18} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       {/* ── Search bar ── */}
@@ -413,6 +551,16 @@ export default function TeamScreen() {
         />
       )}
 
+      {/* ── Create sheet ── */}
+      {showCreate && (
+        <CreateSheet
+          tab={tab}
+          onClose={() => setShowCreate(false)}
+          onSubmit={(data) => createMut.mutate(data)}
+          loading={createMut.isPending}
+        />
+      )}
+
       {/* ── Detail sheet ── */}
       {selected && (
         <DetailSheet
@@ -495,11 +643,7 @@ const s = StyleSheet.create({
     borderRadius: 18,
     padding: 14,
     borderTopWidth: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
+    ...shadow('#000', 3, 0.06, 10, 2),
     gap: 6,
   },
   cardTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 },
@@ -558,6 +702,42 @@ const s = StyleSheet.create({
   },
   sheetBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   btnDisabled: { opacity: 0.5 },
+
+  // Add button
+  addBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+    ...shadow('#000', 4, 0.15, 8, 3),
+  },
+
+  // Create sheet
+  createHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
+  createIconWrap: {
+    width: 44, height: 44, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  createTitle: { fontSize: 17, fontWeight: '800', color: '#0a0f1c' },
+  createSub: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
+  createBtn: {
+    height: 54, borderRadius: 14, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8,
+  },
+  createBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+
+  // Create field
+  cfGroup: { marginBottom: 14 },
+  cfLabel: { fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 0.7, marginBottom: 6 },
+  cfRow: {
+    flexDirection: 'row', alignItems: 'center', height: 52,
+    borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 12,
+    backgroundColor: '#f8fafc', overflow: 'hidden',
+  },
+  cfRowFocused: { borderColor: GREEN, backgroundColor: '#fff' },
+  cfIcon: {
+    width: 46, height: '100%', alignItems: 'center', justifyContent: 'center',
+    borderRightWidth: 1, borderRightColor: '#e2e8f0',
+  },
+  cfInput: { flex: 1, paddingHorizontal: 12, fontSize: 15, color: '#0a0f1c', fontWeight: '500' },
 
   // Empty
   emptyBox: { alignItems: 'center', paddingTop: 80 },

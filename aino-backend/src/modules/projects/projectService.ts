@@ -90,6 +90,13 @@ export const publishProject = (id: string) => {
   });
 };
 
+export const unpublishProject = (id: string) => {
+  return prisma.project.update({
+    where: { id },
+    data: { is_published: false },
+  });
+};
+
 export const assignOwner = (id: string, ownerId: string) => {
   return prisma.project.update({
     where: { id },

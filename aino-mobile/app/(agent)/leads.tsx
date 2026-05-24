@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
+import { shadow } from '@/src/lib/shadow';
 import api from '@/src/api/client';
 
 interface Lead {
@@ -215,11 +216,7 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 18,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    ...shadow('#000', 3, 0.05, 10, 2),
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   projectIcon: {

@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { shadow } from '@/src/lib/shadow';
 import api from '@/src/api/client';
 
 interface Commission {
@@ -176,11 +177,7 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 20,
     marginBottom: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    ...shadow('#000', 4, 0.06, 12, 3),
     overflow: 'hidden',
   },
   summaryHalf: { flex: 1, alignItems: 'center', paddingVertical: 20 },
@@ -192,11 +189,7 @@ const s = StyleSheet.create({
     borderRadius: 18,
     borderLeftWidth: 4,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    ...shadow('#000', 3, 0.05, 10, 2),
   },
   cardInner: {
     flexDirection: 'row',

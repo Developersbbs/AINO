@@ -21,10 +21,119 @@ import { app } from '@/config/firebase';
 import api from '@/src/api/client';
 import { useAuthStore } from '@/src/stores/useAuthStore';
 import type { AuthUser } from '@/src/stores/useAuthStore';
-import { getConfirmation, setConfirmation, clearConfirmation } from '@/src/lib/phoneAuth';
+import { getConfirmation, setConfirmation, clearConfirmation, consumeDevOtp } from '@/src/lib/phoneAuth';
+import { shadow } from '@/src/lib/shadow';
 
 const DIGIT_COUNT = 6;
 const GREEN = '#1e3c6e';
+const DIGIT_SLOTS = [0, 1, 2, 3, 4, 5] as const;
+
+function navigateAfterLogin(role: string, router: { replace: (href: any) => void }) {
+  let dest = '/(owner)/dashboard';
+  if (role === 'Admin') dest = '/(admin)/dashboard';
+  else if (role === 'Agent') dest = '/(agent)/dashboard';
+  router.replace(dest);
+}
+
+function handleOtpError(err: any, router: { replace: (href: any) => void }) {
+  if (err.code === 'auth/invalid-verification-code') {
+    Alert.alert('Wrong code', 'Please check and try again.');
+    return;
+  }
+  if (err.code === 'auth/code-expired') {
+    Alert.alert('Expired', 'Code expired. Request a new one.');
+    return;
+  }
+  const status = err.response?.status;
+  const message: string | undefined = err.response?.data?.message;
+  if (status === 403) {
+    Alert.alert('Pending Approval', message ?? 'Awaiting admin approval.');
+  } else if (status === 404 && err.response?.data?.requiresRegistration) {
+    Alert.alert('Not Registered', 'No account found. Please register.', [
+      { text: 'Register', onPress: () => router.replace('/(auth)/register') },
+    ]);
+  } else if (status === 503) {
+    Alert.alert('Service Unavailable', message ?? 'Verification timed out. Please try again.');
+  } else if (err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK') {
+    Alert.alert('Connection Error', 'Request timed out. Please check your connection and try again.');
+  } else {
+    Alert.alert('Error', message ?? 'Verification failed. Try again.');
+  }
+}
+
+async function execBackendOtpVerify(
+  phone: string,
+  otp: string,
+  mode: string | undefined,
+  reg: { name?: string; email?: string; role?: string },
+  router: { replace: (href: any) => void },
+  onSetAuth: (u: AuthUser, a: string, r: string) => Promise<void>,
+  onClearDigits: () => void,
+) {
+  const otpRes = await api.post('/auth/verify-otp', { phone, otp }, {
+    validateStatus: (s) => s < 500,
+  });
+  if (otpRes.status === 400) {
+    Alert.alert('Wrong code', otpRes.data?.message ?? 'Invalid or expired OTP.');
+    onClearDigits();
+    return;
+  }
+  if (otpRes.status === 403) {
+    Alert.alert('Pending Approval', otpRes.data?.message ?? 'Awaiting admin approval.');
+    return;
+  }
+  if (otpRes.status === 404 && otpRes.data?.requiresRegistration) {
+    if (mode === 'web-register') {
+      await api.post('/auth/register', { name: reg.name, phone, email: reg.email || undefined, role: reg.role });
+      Alert.alert(
+        'Registration Successful!',
+        'Your account is pending admin approval.',
+        [{ text: 'Go to Login', onPress: () => router.replace('/(auth)/login' as any) }],
+      );
+    } else {
+      Alert.alert('Not Registered', 'No account found. Please register.', [
+        { text: 'Register', onPress: () => router.replace('/(auth)/register') },
+      ]);
+    }
+    return;
+  }
+  const { accessToken, refreshToken, user } = otpRes.data as {
+    accessToken: string; refreshToken: string; user: AuthUser;
+  };
+  await onSetAuth(user, accessToken, refreshToken);
+  navigateAfterLogin(user.role, router);
+}
+
+async function execFirebaseVerify(
+  otp: string,
+  isRegister: boolean,
+  name: string | undefined,
+  email: string | undefined,
+  role: string | undefined,
+  router: { replace: (href: any) => void },
+  onSetAuth: (u: AuthUser, a: string, r: string) => Promise<void>,
+) {
+  const confirmation = getConfirmation()!;
+  const credential = await confirmation.confirm(otp);
+  const firebaseIdToken = await credential.user.getIdToken();
+  clearConfirmation();
+
+  if (isRegister) {
+    await api.post('/auth/firebase-verify', { firebaseIdToken, name, email: email || undefined, role });
+    Alert.alert(
+      'Registration Successful!',
+      'Your account is pending admin approval.',
+      [{ text: 'Go to Login', onPress: () => router.replace('/(auth)/login' as any) }],
+    );
+  } else {
+    const { data } = await api.post('/auth/verify-otp', { firebaseIdToken });
+    const { accessToken, refreshToken, user } = data as {
+      accessToken: string; refreshToken: string; user: AuthUser;
+    };
+    await onSetAuth(user, accessToken, refreshToken);
+    navigateAfterLogin(user.role, router);
+  }
+}
 
 export default function OtpScreen() {
   const { phone, name, email, role, mode } = useLocalSearchParams<{
@@ -34,13 +143,16 @@ export default function OtpScreen() {
   const { setAuth } = useAuthStore();
   const isRegister = mode === 'register';
 
-  const [digits, setDigits] = useState<string[]>(Array(DIGIT_COUNT).fill(''));
+  const [digits, setDigits] = useState<string[]>(new Array(DIGIT_COUNT).fill(''));
   const [loading, setLoading] = useState(false);
-  const inputs = useRef<Array<TextInput | null>>(Array(DIGIT_COUNT).fill(null));
+  const inputs = useRef<Array<TextInput | null>>(new Array(DIGIT_COUNT).fill(null));
   const resendRecaptcha = useRef<FirebaseRecaptchaVerifierModal>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => inputs.current[0]?.focus(), 100);
+    const dev = consumeDevOtp();
+    const prefilled = dev?.length === DIGIT_COUNT;
+    if (prefilled) setDigits(dev!.split(''));
+    const t = setTimeout(() => inputs.current[prefilled ? DIGIT_COUNT - 1 : 0]?.focus(), 100);
     return () => clearTimeout(t);
   }, []);
 
@@ -63,52 +175,32 @@ export default function OtpScreen() {
     }
   };
 
+  const clearDigitsAndFocus = () => {
+    setDigits(new Array(DIGIT_COUNT).fill(''));
+    inputs.current[0]?.focus();
+  };
+
   const handleVerify = async () => {
     const otp = digits.join('');
     if (otp.length < DIGIT_COUNT) return Alert.alert('Incomplete', 'Enter all 6 digits.');
-    const confirmation = getConfirmation();
-    if (!confirmation) return Alert.alert('Session expired', 'Go back and request a new code.');
+
+    const useBackendOtp = mode === 'web-otp' || mode === 'web-register';
+    if (!useBackendOtp && !getConfirmation()) {
+      return Alert.alert('Session expired', 'Go back and request a new code.');
+    }
 
     try {
       setLoading(true);
-      const credential = await confirmation.confirm(otp);
-      const firebaseIdToken = await credential.user.getIdToken();
-      clearConfirmation();
-
-      if (isRegister) {
-        await api.post('/auth/firebase-verify', { firebaseIdToken, name, email: email || undefined, role });
-        Alert.alert(
-          'Registration Successful!',
-          'Your account is pending admin approval.',
-          [{ text: 'Go to Login', onPress: () => router.replace('/(auth)/login' as any) }],
-        );
+      if (useBackendOtp) {
+        await execBackendOtpVerify(phone, otp, mode, { name, email, role }, router, setAuth, clearDigitsAndFocus);
       } else {
-        const { data } = await api.post('/auth/verify-otp', { firebaseIdToken });
-        const { accessToken, refreshToken, user } = data as {
-          accessToken: string; refreshToken: string; user: AuthUser;
-        };
-        await setAuth(user, accessToken, refreshToken);
-        const dest =
-          user.role === 'Admin' ? '/(admin)/dashboard' :
-          user.role === 'Agent' ? '/(agent)/dashboard' : '/(owner)/dashboard';
-        router.replace(dest as any);
+        await execFirebaseVerify(otp, isRegister, name, email, role, router, setAuth);
       }
     } catch (err: any) {
-      if (err.code === 'auth/invalid-verification-code') {
-        Alert.alert('Wrong code', 'Please check and try again.');
-      } else if (err.code === 'auth/code-expired') {
-        Alert.alert('Expired', 'Code expired. Request a new one.');
-      } else {
-        const status = err.response?.status;
-        const message = err.response?.data?.message;
-        if (status === 403) Alert.alert('Pending Approval', message ?? 'Awaiting admin approval.');
-        else if (status === 404 && err.response?.data?.requiresRegistration) {
-          Alert.alert('Not Registered', 'No account found. Please register.', [
-            { text: 'Register', onPress: () => router.replace('/(auth)/register' as any) },
-          ]);
-        } else Alert.alert('Error', message ?? 'Verification failed. Try again.');
-      }
-      setDigits(Array(DIGIT_COUNT).fill(''));
+      handleOtpError(err, router);
+      const isNetworkError = err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK' ||
+        err.response?.status === 503;
+      if (!isNetworkError) setDigits(new Array(DIGIT_COUNT).fill(''));
       inputs.current[0]?.focus();
     } finally {
       setLoading(false);
@@ -116,10 +208,27 @@ export default function OtpScreen() {
   };
 
   const handleResend = async () => {
+    if (Platform.OS === 'web') {
+      try {
+        const { data } = await api.post('/auth/send-otp', { phone });
+        const dev = typeof data.devOtp === 'string' && data.devOtp.length === DIGIT_COUNT ? data.devOtp : null;
+        if (dev) {
+          setDigits(dev.split(''));
+          inputs.current[DIGIT_COUNT - 1]?.focus();
+        } else {
+          setDigits(new Array(DIGIT_COUNT).fill(''));
+          inputs.current[0]?.focus();
+        }
+        Alert.alert('Sent', 'A new OTP has been sent.');
+      } catch {
+        Alert.alert('Error', 'Could not resend OTP. Try again.');
+      }
+      return;
+    }
     try {
       const result = await firebase.auth().signInWithPhoneNumber(phone, resendRecaptcha.current!);
       setConfirmation(result);
-      setDigits(Array(DIGIT_COUNT).fill(''));
+      setDigits(new Array(DIGIT_COUNT).fill(''));
       inputs.current[0]?.focus();
       Alert.alert('Sent', 'A new OTP has been sent.');
     } catch {
@@ -129,11 +238,13 @@ export default function OtpScreen() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <FirebaseRecaptchaVerifierModal
-        ref={resendRecaptcha}
-        firebaseConfig={app.options}
-        attemptInvisibleVerification
-      />
+      {Platform.OS !== 'web' && (
+        <FirebaseRecaptchaVerifierModal
+          ref={resendRecaptcha}
+          firebaseConfig={app.options}
+          attemptInvisibleVerification
+        />
+      )}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -170,12 +281,12 @@ export default function OtpScreen() {
 
             {/* ── Digit boxes ── */}
             <View style={s.boxRow}>
-              {digits.map((digit, i) => (
+              {DIGIT_SLOTS.map((i) => (
                 <TextInput
                   key={i}
                   ref={(el) => { inputs.current[i] = el; }}
-                  style={[s.box, digit ? s.boxFilled : null, loading && s.boxLoading]}
-                  value={digit}
+                  style={[s.box, digits[i] ? s.boxFilled : null, loading && s.boxLoading]}
+                  value={digits[i]}
                   onChangeText={(v) => updateDigit(v, i)}
                   onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
                   keyboardType="number-pad"
@@ -190,7 +301,7 @@ export default function OtpScreen() {
 
             {/* Progress dots */}
             <View style={s.progressRow}>
-              {Array(DIGIT_COUNT).fill(0).map((_, i) => (
+              {DIGIT_SLOTS.map((i) => (
                 <View
                   key={i}
                   style={[s.dot, i < filled ? s.dotFilled : null]}
@@ -306,14 +417,10 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    shadowColor: GREEN,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 14,
-    elevation: 6,
     marginBottom: 20,
+    ...shadow(GREEN, 8, 0.28, 14, 6),
   },
-  btnOff: { opacity: 0.45, shadowOpacity: 0 },
+  btnOff: { opacity: 0.45 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   resendRow: { alignItems: 'center', paddingVertical: 8 },
   resendText: { fontSize: 14, color: '#64748b' },

@@ -18,6 +18,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { shadow } from '@/src/lib/shadow';
 import api from '@/src/api/client';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -507,11 +508,7 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
+    ...shadow('#000', 2, 0.06, 10, 3),
   },
   row: {
     flexDirection: 'row',

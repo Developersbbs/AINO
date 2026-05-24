@@ -18,9 +18,11 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import firebase from 'firebase/compat/app';
+import { shadow } from '@/src/lib/shadow';
 import 'firebase/compat/auth';
 import { app } from '@/config/firebase';
-import { setConfirmation } from '@/src/lib/phoneAuth';
+import { setConfirmation, setDevOtp } from '@/src/lib/phoneAuth';
+import api from '@/src/api/client';
 
 const GREEN = '#1e3c6e';
 const SCREEN_H = Dimensions.get('window').height;
@@ -36,6 +38,21 @@ export default function LoginScreen() {
     const digits = phone.trim();
     if (!digits) return Alert.alert('Required', 'Enter your phone number.');
     const fullPhone = '+91' + digits;
+
+    if (Platform.OS === 'web') {
+      try {
+        setLoading(true);
+        const { data } = await api.post('/auth/send-otp', { phone: fullPhone });
+        if (data.devOtp) setDevOtp(data.devOtp);
+        router.push({ pathname: '/(auth)/otp' as any, params: { phone: fullPhone, mode: 'web-otp' } });
+      } catch (err: any) {
+        Alert.alert('Failed', err.response?.data?.message ?? 'Could not send OTP. Try again.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       setLoading(true);
       const result = await firebase
@@ -52,11 +69,13 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={app.options}
-        attemptInvisibleVerification
-      />
+      {Platform.OS !== 'web' && (
+        <FirebaseRecaptchaVerifierModal
+          ref={recaptchaVerifier}
+          firebaseConfig={app.options}
+          attemptInvisibleVerification
+        />
+      )}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -101,7 +120,7 @@ export default function LoginScreen() {
                 onBlur={() => setFocused(false)}
                 returnKeyType="done"
                 onSubmitEditing={handleSendOtp}
-                autoFocus
+                autoFocus={Platform.OS !== 'web'}
               />
             </View>
 
@@ -159,11 +178,7 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 12,
+    ...shadow('#000', 8, 0.18, 24, 12),
   },
   logoImage: {
     width: 148,
@@ -212,13 +227,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    shadowColor: GREEN,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 14,
-    elevation: 6,
+    ...shadow(GREEN, 8, 0.28, 14, 6),
   },
-  btnOff: { opacity: 0.55, shadowOpacity: 0 },
+  btnOff: { opacity: 0.55 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
   btnCircle: {
     width: 30,

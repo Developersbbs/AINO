@@ -3,6 +3,40 @@ import { AuthRequest } from '../../middlewares/auth';
 import { apiResponse } from '../../utils/apiResponse';
 import * as adminService from './adminService';
 
+export const createAgent = async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, phone, email } = req.body;
+    if (!name || !phone) return apiResponse(res, 400, null, 'name and phone are required');
+    const user = await adminService.createUser({
+      name: String(name),
+      phone: String(phone),
+      email: email ? String(email) : undefined,
+      role: 'Agent',
+    });
+    return apiResponse(res, 201, user, 'Agent created');
+  } catch (error: any) {
+    if (error.code === 'P2002') return apiResponse(res, 409, null, 'Phone number already registered');
+    return apiResponse(res, 500, null, 'Server error');
+  }
+};
+
+export const createOwner = async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, phone, email } = req.body;
+    if (!name || !phone) return apiResponse(res, 400, null, 'name and phone are required');
+    const user = await adminService.createUser({
+      name: String(name),
+      phone: String(phone),
+      email: email ? String(email) : undefined,
+      role: 'Owner',
+    });
+    return apiResponse(res, 201, user, 'Owner created');
+  } catch (error: any) {
+    if (error.code === 'P2002') return apiResponse(res, 409, null, 'Phone number already registered');
+    return apiResponse(res, 500, null, 'Server error');
+  }
+};
+
 export const getAgents = async (_req: AuthRequest, res: Response) => {
   try {
     const agents = await adminService.getAllAgents();

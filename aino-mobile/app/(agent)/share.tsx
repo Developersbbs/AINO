@@ -20,6 +20,7 @@ import { Feather } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
+import { shadow } from '@/src/lib/shadow';
 import api from '@/src/api/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -539,7 +540,7 @@ const s = StyleSheet.create({
   headerSub:   { fontSize: 12, color: '#94a3b8', marginTop: 2 },
   list:        { padding: 16, gap: 14, paddingBottom: 40 },
 
-  card:           { backgroundColor: '#fff', borderRadius: 18, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  card:           { backgroundColor: '#fff', borderRadius: 18, overflow: 'hidden', ...shadow('#000', 3, 0.05, 10, 2) },
   cardBody:       { padding: 18 },
   cardType:       { fontSize: 10, fontWeight: '700', color: NAVY, letterSpacing: 0.8, marginBottom: 4 },
   cardName:       { fontSize: 17, fontWeight: '800', color: '#0a0f1c', marginBottom: 8 },
@@ -604,7 +605,7 @@ const s = StyleSheet.create({
 
   modalOuter:          { flex: 1, justifyContent: 'flex-end' },
   backdrop:            { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet:               { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 20 },
+  sheet:               { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, alignItems: 'center', ...shadow('#000', -4, 0.1, 20, 20) },
   handle:              { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e2e8f0', marginBottom: 20 },
   sheetIcon:           { width: 52, height: 52, borderRadius: 16, backgroundColor: '#f0f9ff', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   sheetTitle:          { fontSize: 18, fontWeight: '800', color: '#0a0f1c', textAlign: 'center', marginBottom: 4 },

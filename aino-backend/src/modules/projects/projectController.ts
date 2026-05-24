@@ -71,6 +71,16 @@ export const publishProject = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const unpublishProject = async (req: AuthRequest, res: Response) => {
+  try {
+    const project = await projectService.unpublishProject(String(req.params.id));
+    return apiResponse(res, 200, project, 'Project unpublished');
+  } catch (error: any) {
+    if (error.code === 'P2025') return apiResponse(res, 404, null, 'Project not found');
+    return apiResponse(res, 500, null, 'Server error');
+  }
+};
+
 export const assignOwner = async (req: AuthRequest, res: Response) => {
   try {
     const { ownerId } = req.body;

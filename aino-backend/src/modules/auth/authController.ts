@@ -29,7 +29,10 @@ export const verifyOtp = async (req: Request, res: Response) => {
     if (firebaseIdToken) {
       try {
         verifiedPhone = await authService.verifyFirebaseToken(firebaseIdToken);
-      } catch {
+      } catch (e: any) {
+        if (e.code === 'FIREBASE_TIMEOUT') {
+          return res.status(503).json({ message: 'Verification service timed out. Please try again.' });
+        }
         return res.status(401).json({ message: 'Invalid or expired Firebase token' });
       }
     } else {
@@ -120,7 +123,10 @@ export const firebaseVerify = async (req: Request, res: Response) => {
     let verifiedPhone: string;
     try {
       verifiedPhone = await authService.verifyFirebaseToken(firebaseIdToken);
-    } catch {
+    } catch (e: any) {
+      if (e.code === 'FIREBASE_TIMEOUT') {
+        return res.status(503).json({ message: 'Verification service timed out. Please try again.' });
+      }
       return res.status(401).json({ message: 'Invalid or expired Firebase token' });
     }
 

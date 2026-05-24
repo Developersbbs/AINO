@@ -17,6 +17,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import Svg, { Circle, Rect, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { shadow } from '@/src/lib/shadow';
 import { useState } from 'react';
 
 interface Lead {
@@ -474,11 +475,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#fff',
     borderRadius: 22,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 4,
+    ...shadow('#0f172a', 6, 0.05, 16, 4),
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(241, 245, 249, 0.8)',
@@ -502,11 +499,7 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 16,
     borderRadius: 22,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 14,
-    elevation: 3,
+    ...shadow('#0f172a', 6, 0.04, 14, 3),
   },
   actionHubItem: {
     flex: 1,
@@ -533,11 +526,7 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 22,
     padding: 18,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 14,
-    elevation: 3,
+    ...shadow('#0f172a', 6, 0.04, 14, 3),
     minWidth: 270,
   },
   chartTitle: { fontSize: 13, fontWeight: '800', color: '#1e293b' },
@@ -572,11 +561,7 @@ const s = StyleSheet.create({
     borderRadius: 22,
     padding: 16,
     gap: 14,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 14,
-    elevation: 3,
+    ...shadow('#0f172a', 6, 0.04, 14, 3),
   },
   feedCard: {
     borderBottomWidth: 1,
@@ -636,11 +621,7 @@ const s = StyleSheet.create({
     borderRadius: 20,
     padding: 16,
     borderLeftWidth: 4,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 10,
-    elevation: 2,
+    ...shadow('#0f172a', 4, 0.03, 10, 2),
   },
   cardIcon: {
     width: 34,
