@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '@/src/stores/useAuthStore';
 import type { UserRole } from '@/src/stores/useAuthStore';
+import { OfflineNotice } from '@/src/components/OfflineNotice';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -92,6 +93,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <StatusBar style="light" />
+      <OfflineNotice />
       <AuthGate />
     </QueryClientProvider>
   );
