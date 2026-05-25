@@ -3,6 +3,7 @@ import { protect } from '../../middlewares/auth';
 import { roles } from '../../middlewares/roles';
 import * as adminController from './adminController';
 import * as commissionController from './commissionConfigController';
+import * as auditLogController from './auditLogController';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.post('/agents/:id/reject',       adminController.rejectAgent);
 router.post('/agents/:id/deactivate',   adminController.deactivateAgent);
 
 router.patch('/users/:id',               adminController.editUser);
+router.get('/audit-log',                 auditLogController.listAuditLogs);
 
 // Commission config
 router.get('/commission-config',                        commissionController.getConfig);

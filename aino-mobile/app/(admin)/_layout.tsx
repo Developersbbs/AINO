@@ -6,7 +6,6 @@ type IconProps = { color: string; size: number };
 const DashboardIcon  = ({ color, size }: IconProps) => <Feather name="grid"      size={size} color={color} />;
 const TeamIcon       = ({ color, size }: IconProps) => <Feather name="users"     size={size} color={color} />;
 const ProjectsIcon   = ({ color, size }: IconProps) => <Feather name="home"      size={size} color={color} />;
-const CommissionIcon = ({ color, size }: IconProps) => <Feather name="percent"   size={size} color={color} />;
 const SearchIcon     = ({ color, size }: IconProps) => <Feather name="search"    size={size} color={color} />;
 const ProfileIcon    = ({ color, size }: IconProps) => <Feather name="user"      size={size} color={color} />;
 
@@ -25,7 +24,8 @@ export default function AdminLayout() {
       <Tabs.Screen name="agents"     options={{ title: 'Team',       tabBarIcon: TeamIcon }} />
       <Tabs.Screen name="owners"     options={{ href: null }} />
       <Tabs.Screen name="projects"   options={{ title: 'Projects',   tabBarIcon: ProjectsIcon }} />
-      <Tabs.Screen name="commission" options={{ title: 'Commission', tabBarIcon: CommissionIcon }} />
+      <Tabs.Screen name="commission" options={{ href: null }} />
+      <Tabs.Screen name="auditlog"   options={{ href: null }} />
       <Tabs.Screen name="search"     options={{ title: 'Search',     tabBarIcon: SearchIcon }} />
       <Tabs.Screen name="profile"    options={{ title: 'Profile',    tabBarIcon: ProfileIcon }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />

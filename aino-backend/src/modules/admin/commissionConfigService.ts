@@ -2,11 +2,11 @@ import prisma from '../../config/database';
 import { UserRole } from '@prisma/client';
 
 const GLOBAL_RATE_KEY = 'commission_global_rate';
-const DEFAULT_RATE = 3.0;
+const DEFAULT_RATE = 3;
 
 export const getGlobalRate = async (): Promise<number> => {
   const setting = await prisma.settings.findUnique({ where: { key: GLOBAL_RATE_KEY } });
-  return setting ? parseFloat(setting.value) : DEFAULT_RATE;
+  return setting ? Number.parseFloat(setting.value) : DEFAULT_RATE;
 };
 
 export const setGlobalRate = async (rate: number): Promise<number> => {
@@ -101,5 +101,19 @@ export const resetAgentOverride = async (agentId: string) => {
     where: { id: agentId },
     data: { commission_rate: null },
     select: { id: true, name: true, commission_rate: true },
+  });
+};
+
+export const getProjectOverrideValues = (projectId: string) => {
+  return prisma.project.findUnique({
+    where: { id: projectId },
+    select: { project_name: true, commission_rate: true, booking_amount: true },
+  });
+};
+
+export const getAgentOverrideValue = (agentId: string) => {
+  return prisma.user.findUnique({
+    where: { id: agentId },
+    select: { name: true, commission_rate: true },
   });
 };

@@ -17,8 +17,10 @@ import { Feather } from '@expo/vector-icons';
 import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
-import { app } from '@/config/firebase';
-import { setConfirmation, setDevOtp } from '@/src/lib/phoneAuth';
+import { app, auth } from '@/config/firebase';
+import { signInWithPhoneNumber } from 'firebase/auth';
+import { setConfirmation } from '@/src/lib/phoneAuth';
+import { useRecaptchaVerifier } from '../../hooks/use-recaptcha-verifier';
 import { shadow } from '@/src/lib/shadow';
 import api from '@/src/api/client';
 
@@ -33,7 +35,7 @@ const ROLE_CONFIG: Record<Role, { icon: React.ComponentProps<typeof Feather>['na
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
+  const { nativeRef, getVerifier, clearWebVerifier } = useRecaptchaVerifier();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -46,34 +48,22 @@ export default function RegisterScreen() {
     if (!phone.trim()) return Alert.alert('Required', 'Phone number is required.');
     const fullPhone = '+91' + phone.trim();
 
-    if (Platform.OS === 'web') {
-      try {
-        setLoading(true);
-        const { data } = await api.post('/auth/send-otp', { phone: fullPhone });
-        if (data.devOtp) setDevOtp(data.devOtp);
-        router.push({
-          pathname: '/(auth)/otp' as any,
-          params: { phone: fullPhone, name: name.trim(), email: email.trim(), role, mode: 'web-register' },
-        });
-      } catch (err: any) {
-        Alert.alert('Failed', err.response?.data?.message ?? 'Could not send OTP. Try again.');
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
     try {
       setLoading(true);
-      const result = await firebase
-        .auth()
-        .signInWithPhoneNumber(fullPhone, recaptchaVerifier.current!);
+      const verifier = getVerifier();
+      let result;
+      if (Platform.OS === 'web') {
+        result = await signInWithPhoneNumber(auth, fullPhone, verifier as any);
+      } else {
+        result = await firebase.auth().signInWithPhoneNumber(fullPhone, verifier as any);
+      }
       setConfirmation(result);
       router.push({
         pathname: '/(auth)/otp' as any,
         params: { phone: fullPhone, name: name.trim(), email: email.trim(), role, mode: 'register' },
       });
     } catch (err: any) {
+      if (Platform.OS === 'web') clearWebVerifier();
       Alert.alert('Failed', err.message ?? 'Could not send OTP. Try again.');
     } finally {
       setLoading(false);
@@ -82,11 +72,14 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={app.options}
-        attemptInvisibleVerification
-      />
+      <View nativeID="recaptcha-container" />
+      {Platform.OS !== 'web' && (
+        <FirebaseRecaptchaVerifierModal
+          ref={nativeRef}
+          firebaseConfig={app.options}
+          attemptInvisibleVerification
+        />
+      )}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}

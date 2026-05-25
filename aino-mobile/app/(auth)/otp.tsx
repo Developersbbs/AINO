@@ -17,11 +17,13 @@ import { Feather } from '@expo/vector-icons';
 import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
-import { app } from '@/config/firebase';
+import { app, auth } from '@/config/firebase';
+import { signInWithPhoneNumber } from 'firebase/auth';
 import api from '@/src/api/client';
 import { useAuthStore } from '@/src/stores/useAuthStore';
 import type { AuthUser } from '@/src/stores/useAuthStore';
 import { getConfirmation, setConfirmation, clearConfirmation, consumeDevOtp } from '@/src/lib/phoneAuth';
+import { useRecaptchaVerifier } from '../../hooks/use-recaptcha-verifier';
 import { shadow } from '@/src/lib/shadow';
 
 const DIGIT_COUNT = 6;
@@ -150,7 +152,7 @@ export default function OtpScreen() {
   const [digits, setDigits] = useState<string[]>(new Array(DIGIT_COUNT).fill(''));
   const [loading, setLoading] = useState(false);
   const inputs = useRef<Array<TextInput | null>>(new Array(DIGIT_COUNT).fill(null));
-  const resendRecaptcha = useRef<FirebaseRecaptchaVerifierModal>(null);
+  const { nativeRef, getVerifier, clearWebVerifier } = useRecaptchaVerifier();
 
   useEffect(() => {
     const dev = consumeDevOtp();
@@ -163,7 +165,24 @@ export default function OtpScreen() {
   const filled = digits.filter(Boolean).length;
 
   const updateDigit = (value: string, index: number) => {
-    const digit = value.replace(/\D/g, '').slice(-1);
+    const cleaned = value.replace(/\D/g, '');
+    
+    // Handle OTP auto-fill / paste (multiple digits)
+    if (cleaned.length > 1) {
+      const next = [...digits];
+      let charIndex = 0;
+      for (let i = index; i < DIGIT_COUNT && charIndex < cleaned.length; i++) {
+        next[i] = cleaned[charIndex];
+        charIndex++;
+      }
+      setDigits(next);
+      const nextFocus = Math.min(index + cleaned.length, DIGIT_COUNT - 1);
+      inputs.current[nextFocus]?.focus();
+      return;
+    }
+
+    // Normal single digit entry
+    const digit = cleaned.slice(-1);
     const next = [...digits];
     next[index] = digit;
     setDigits(next);
@@ -212,39 +231,30 @@ export default function OtpScreen() {
   };
 
   const handleResend = async () => {
-    if (Platform.OS === 'web') {
-      try {
-        const { data } = await api.post('/auth/send-otp', { phone });
-        const dev = typeof data.devOtp === 'string' && data.devOtp.length === DIGIT_COUNT ? data.devOtp : null;
-        if (dev) {
-          setDigits(dev.split(''));
-          inputs.current[DIGIT_COUNT - 1]?.focus();
-        } else {
-          setDigits(new Array(DIGIT_COUNT).fill(''));
-          inputs.current[0]?.focus();
-        }
-        Alert.alert('Sent', 'A new OTP has been sent.');
-      } catch {
-        Alert.alert('Error', 'Could not resend OTP. Try again.');
-      }
-      return;
-    }
     try {
-      const result = await firebase.auth().signInWithPhoneNumber(phone, resendRecaptcha.current!);
+      const verifier = getVerifier();
+      let result;
+      if (Platform.OS === 'web') {
+        result = await signInWithPhoneNumber(auth, phone, verifier as any);
+      } else {
+        result = await firebase.auth().signInWithPhoneNumber(phone, verifier as any);
+      }
       setConfirmation(result);
       setDigits(new Array(DIGIT_COUNT).fill(''));
       inputs.current[0]?.focus();
       Alert.alert('Sent', 'A new OTP has been sent.');
     } catch {
+      if (Platform.OS === 'web') clearWebVerifier();
       Alert.alert('Error', 'Could not resend OTP. Try again.');
     }
   };
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
+      <View nativeID="recaptcha-container" />
       {Platform.OS !== 'web' && (
         <FirebaseRecaptchaVerifierModal
-          ref={resendRecaptcha}
+          ref={nativeRef}
           firebaseConfig={app.options}
           attemptInvisibleVerification
         />
@@ -294,7 +304,7 @@ export default function OtpScreen() {
                   onChangeText={(v) => updateDigit(v, i)}
                   onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
                   keyboardType="number-pad"
-                  maxLength={1}
+                  maxLength={DIGIT_COUNT}
                   selectTextOnFocus
                   textAlign="center"
                   caretHidden={Platform.OS !== 'web'}

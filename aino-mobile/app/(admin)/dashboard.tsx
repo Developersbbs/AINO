@@ -59,10 +59,10 @@ function getInitials(name: string) {
 
 function MetricCard({
   title, value, sub, icon, color,
-}: {
+}: Readonly<{
   title: string; value: string; sub?: string;
   icon: React.ComponentProps<typeof Feather>['name']; color: string;
-}) {
+}>) {
   return (
     <View style={[s.card, { borderLeftColor: color }]}>
       <View style={[s.cardIcon, { backgroundColor: color + '12' }]}>
@@ -75,7 +75,7 @@ function MetricCard({
   );
 }
 
-function InventoryDonutChart({ available, booked, sold }: { available: number; booked: number; sold: number }) {
+function InventoryDonutChart({ available, booked, sold }: Readonly<{ available: number; booked: number; sold: number }>) {
   const total = available + booked + sold;
   if (total === 0) return null;
 
@@ -179,7 +179,7 @@ function InventoryDonutChart({ available, booked, sold }: { available: number; b
   );
 }
 
-function RevenueTrendChart({ revenue }: { revenue: number }) {
+function RevenueTrendChart({ revenue }: Readonly<{ revenue: number }>) {
   const months = ['Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May'];
   const baseRev = revenue > 0 ? revenue : 5000000;
   
@@ -208,7 +208,7 @@ function RevenueTrendChart({ revenue }: { revenue: number }) {
   });
 
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  const areaPath = `${linePath} L ${points[points.length - 1].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`;
+  const areaPath = `${linePath} L ${points.at(-1)?.x ?? 0} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`;
 
   return (
     <View style={s.chartCard}>
@@ -239,13 +239,13 @@ function RevenueTrendChart({ revenue }: { revenue: number }) {
           <Path d={`M ${paddingX} ${chartHeight - paddingY} L ${chartWidth - paddingX} ${chartHeight - paddingY}`} stroke="#e2e8f0" strokeWidth={1} />
           <Path d={areaPath} fill="url(#areaGrad)" />
           <Path d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth={3} />
-          {points.map((p, idx) => (
-            <Circle key={idx} cx={p.x} cy={p.y} r={4} fill="#fff" stroke={INDIGO} strokeWidth={2.5} />
+          {points.map((p) => (
+            <Circle key={`${p.x}-${p.y}`} cx={p.x} cy={p.y} r={4} fill="#fff" stroke={INDIGO} strokeWidth={2.5} />
           ))}
         </Svg>
         <View style={s.chartLabelsRow}>
-          {months.map((m, idx) => (
-            <Text key={idx} style={s.chartLabel}>{m}</Text>
+          {months.map((m) => (
+            <Text key={m} style={s.chartLabel}>{m}</Text>
           ))}
         </View>
       </View>
@@ -485,6 +485,48 @@ export default function AdminDashboard() {
               </TouchableOpacity>
             </View>
 
+            {/* System Tools */}
+            <Text style={s.sectionLabel}>SYSTEM TOOLS</Text>
+            <View style={s.toolsGroup}>
+              <TouchableOpacity
+                style={s.toolCard}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push('/(admin)/commission');
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[s.toolIconWrap, { backgroundColor: GOLD + '14' }]}>
+                  <Feather name="percent" size={18} color={GOLD} />
+                </View>
+                <View style={s.toolText}>
+                  <Text style={s.toolTitle}>Commission Config</Text>
+                  <Text style={s.toolSub}>Rates & project / agent overrides</Text>
+                </View>
+                <Feather name="chevron-right" size={16} color="#cbd5e1" />
+              </TouchableOpacity>
+
+              <View style={s.toolDivider} />
+
+              <TouchableOpacity
+                style={s.toolCard}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push('/(admin)/auditlog');
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[s.toolIconWrap, { backgroundColor: VIOLET + '12' }]}>
+                  <Feather name="list" size={18} color={VIOLET} />
+                </View>
+                <View style={s.toolText}>
+                  <Text style={s.toolTitle}>Override Audit Log</Text>
+                  <Text style={s.toolSub}>Immutable record of all overrides</Text>
+                </View>
+                <Feather name="chevron-right" size={16} color="#cbd5e1" />
+              </TouchableOpacity>
+            </View>
+
             {/* Live SVG Analytics */}
             <Text style={s.sectionLabel}>VISUAL INSIGHTS</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chartsScroll}>
@@ -637,7 +679,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(241, 245, 249, 0.8)',
   },
-  revLabel: { fontSize: 10, fontWeight: '800', color: '#94a3b8', letterSpacing: 1.0, marginBottom: 6 },
+  revLabel: { fontSize: 10, fontWeight: '800', color: '#94a3b8', letterSpacing: 1, marginBottom: 6 },
   revValue: { fontSize: 28, fontWeight: '900', color: '#0f172a', marginBottom: 4 },
   revBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   revBadgeText: { fontSize: 12, color: EMERALD, fontWeight: '700' },
@@ -653,23 +695,25 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: '#94a3b8',
-    letterSpacing: 1.0,
+    letterSpacing: 1,
     marginTop: 22,
     marginBottom: 12,
     paddingHorizontal: 4,
   },
   actionHub: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
     backgroundColor: '#fff',
     padding: 16,
+    paddingBottom: 8,
     borderRadius: 22,
     ...shadow('#0f172a', 6, 0.04, 14, 3),
   },
   actionHubItem: {
-    flex: 1,
+    width: '33.33%',
     alignItems: 'center',
     gap: 8,
+    paddingBottom: 12,
   },
   actionHubIcon: {
     width: 44,
@@ -843,6 +887,30 @@ const s = StyleSheet.create({
   cardValue: { fontSize: 24, fontWeight: '900', color: '#0f172a', marginBottom: 2 },
   cardTitle: { fontSize: 12, color: '#64748b', fontWeight: '600' },
   cardSub: { fontSize: 10, color: '#94a3b8', marginTop: 2 },
+  toolsGroup: {
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    ...shadow('#0f172a', 6, 0.04, 14, 3),
+    overflow: 'hidden',
+  },
+  toolCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  toolIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolText: { flex: 1 },
+  toolTitle: { fontSize: 14, fontWeight: '800', color: '#1e293b' },
+  toolSub: { fontSize: 11, color: '#94a3b8', marginTop: 2 },
+  toolDivider: { height: 1, backgroundColor: '#f1f5f9', marginHorizontal: 18 },
   headerRight: { flexDirection: 'column', alignItems: 'flex-end', gap: 8 },
   bellBtn: {
     width: 38, height: 38, borderRadius: 12,

@@ -1,9 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import dynamic from 'next/dynamic';
 import TrackClick from './TrackClick';
-
-const PlotMapUI = dynamic(() => import('./LayoutMap'), { ssr: false });
+import PlotMapClient from './PlotMapClient';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,7 +79,7 @@ export default async function BookPage(
   return (
     <>
       <TrackClick shareToken={shareToken} />
-      <PlotMapUI
+      <PlotMapClient
         project={data.project}
         units={data.units}
         agentId={data.agentId ?? null}

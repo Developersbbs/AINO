@@ -68,6 +68,19 @@ model Notification {
   user       User     @relation(fields: [user_id], references: [id])
 }
 
+model AuditLog {
+  id          String   @id @default(uuid())
+  actor_id    String?
+  actor_name  String
+  action      String
+  target_type String
+  target_id   String?
+  target_name String?
+  old_value   String?
+  new_value   String?
+  created_at  DateTime @default(now())
+}
+
 model OtpLog {
   id          String   @id @default(uuid())
   phone       String

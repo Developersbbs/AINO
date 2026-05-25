@@ -48,8 +48,8 @@ api.interceptors.response.use(
       const refreshToken = useAuthStore.getState().refreshToken;
       if (!refreshToken) throw new Error('no_refresh_token');
 
-      // Plain axios — avoids interceptor loop
-      const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
+      // Plain axios — avoids interceptor loop, but needs a timeout so it doesn't hang forever
+      const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken }, { timeout: 15_000 });
       const newToken: string = data.accessToken;
 
       await useAuthStore.getState().updateAccessToken(newToken);

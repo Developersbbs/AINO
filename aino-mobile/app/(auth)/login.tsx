@@ -20,8 +20,10 @@ import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import firebase from 'firebase/compat/app';
 import { shadow } from '@/src/lib/shadow';
 import 'firebase/compat/auth';
-import { app } from '@/config/firebase';
-import { setConfirmation, setDevOtp } from '@/src/lib/phoneAuth';
+import { app, auth } from '@/config/firebase';
+import { signInWithPhoneNumber } from 'firebase/auth';
+import { setConfirmation } from '@/src/lib/phoneAuth';
+import { useRecaptchaVerifier } from '../../hooks/use-recaptcha-verifier';
 import api from '@/src/api/client';
 
 const GREEN = '#1e3c6e';
@@ -32,35 +34,26 @@ export default function LoginScreen() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
-  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
+  const { nativeRef, getVerifier, clearWebVerifier } = useRecaptchaVerifier();
 
   const handleSendOtp = async () => {
     const digits = phone.trim();
     if (!digits) return Alert.alert('Required', 'Enter your phone number.');
     const fullPhone = '+91' + digits;
 
-    if (Platform.OS === 'web') {
-      try {
-        setLoading(true);
-        const { data } = await api.post('/auth/send-otp', { phone: fullPhone });
-        if (data.devOtp) setDevOtp(data.devOtp);
-        router.push({ pathname: '/(auth)/otp' as any, params: { phone: fullPhone, mode: 'web-otp' } });
-      } catch (err: any) {
-        Alert.alert('Failed', err.response?.data?.message ?? 'Could not send OTP. Try again.');
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
     try {
       setLoading(true);
-      const result = await firebase
-        .auth()
-        .signInWithPhoneNumber(fullPhone, recaptchaVerifier.current!);
+      const verifier = getVerifier();
+      let result;
+      if (Platform.OS === 'web') {
+        result = await signInWithPhoneNumber(auth, fullPhone, verifier as any);
+      } else {
+        result = await firebase.auth().signInWithPhoneNumber(fullPhone, verifier as any);
+      }
       setConfirmation(result);
       router.push({ pathname: '/(auth)/otp' as any, params: { phone: fullPhone } });
     } catch (err: any) {
+      if (Platform.OS === 'web') clearWebVerifier();
       Alert.alert('Failed', err.message ?? 'Could not send OTP. Try again.');
     } finally {
       setLoading(false);
@@ -69,9 +62,10 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
+      <View nativeID="recaptcha-container" />
       {Platform.OS !== 'web' && (
         <FirebaseRecaptchaVerifierModal
-          ref={recaptchaVerifier}
+          ref={nativeRef}
           firebaseConfig={app.options}
           attemptInvisibleVerification
         />

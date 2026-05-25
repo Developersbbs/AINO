@@ -12,7 +12,7 @@ export function useRecaptchaVerifier() {
     if (Platform.OS === 'web') {
       if (!webVerifierRef.current) {
         webVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'normal',
+          size: 'invisible',
         });
       }
       return webVerifierRef.current;

@@ -8,6 +8,7 @@ import {
   ScrollView,
   Image,
   TextInput,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -196,6 +197,12 @@ export default function ProfileScreen() {
   };
 
   const confirmDelete = (index: number, docName: string) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Remove "${docName}"?`)) {
+        deleteMut.mutate(index);
+      }
+      return;
+    }
     Alert.alert('Remove Document', `Remove "${docName}"?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove', style: 'destructive', onPress: () => deleteMut.mutate(index) },
@@ -215,6 +222,12 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to log out?')) {
+        doLogout();
+      }
+      return;
+    }
     Alert.alert('Log out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Log out', style: 'destructive', onPress: doLogout },
@@ -233,6 +246,12 @@ export default function ProfileScreen() {
   };
 
   const handleDeleteAccount = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('This will permanently delete your account and all associated data. This cannot be undone. Are you absolutely sure?')) {
+        doDeleteAccount();
+      }
+      return;
+    }
     Alert.alert(
       'Delete Account',
       'This will permanently delete your account and all associated data. This cannot be undone.',
