@@ -629,7 +629,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
     borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#f8fafc',
   },
-  typePillActive: {},
+  typePillActive: {}, 
   typePillText: { fontSize: 12, fontWeight: '600', color: '#64748b' },
   typePillTextActive: { color: '#fff' },
   uploadBtn: {

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "915358450518",
+    "project_id": "aino-b1afb",
+    "storage_bucket": "aino-b1afb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:915358450518:android:1729cbc04db21051554cf7",
+        "android_client_info": {
+          "package_name": "com.sbbs.aino"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4xYFVDpTdlhHgfv04BW5tn5SZDAHzlM0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
