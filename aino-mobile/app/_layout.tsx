@@ -1,12 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import NetInfo from '@react-native-community/netinfo';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '@/src/stores/useAuthStore';
 import type { UserRole } from '@/src/stores/useAuthStore';
-import { OfflineNotice } from '@/src/components/OfflineNotice';
+import { NetworkErrorScreen } from '@/src/components/NetworkErrorScreen';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -73,7 +74,6 @@ function AuthGate() {
     if (isLoaded) SplashScreen.hideAsync();
   }, [isLoaded]);
 
-  // Show branded splash while auth state is being restored from storage.
   if (!isLoaded) {
     return (
       <View style={splash.screen}>
@@ -89,12 +89,28 @@ function AuthGate() {
   return <Slot />;
 }
 
+function AppContent() {
+  const [isConnected, setIsConnected] = useState(true);
+
+  useEffect(() => {
+    const unsub = NetInfo.addEventListener((state) => {
+      setIsConnected(state.isConnected === true && state.isInternetReachable !== false);
+    });
+    return () => unsub();
+  }, []);
+
+  if (!isConnected) {
+    return <NetworkErrorScreen onRetry={() => setIsConnected(true)} />;
+  }
+
+  return <AuthGate />;
+}
+
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <StatusBar style="light" />
-      <OfflineNotice />
-      <AuthGate />
+      <AppContent />
     </QueryClientProvider>
   );
 }
