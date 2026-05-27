@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import {
   LayoutDashboard,
@@ -15,7 +14,6 @@ import {
   Share2,
   TrendingUp,
   X,
-  ChevronRight,
 } from 'lucide-react'
 
 interface NavItem {
@@ -25,28 +23,28 @@ interface NavItem {
 }
 
 const adminNav: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Projects', href: '/projects', icon: Building2 },
-  { label: 'Agents', href: '/agents', icon: Users },
-  { label: 'Owners', href: '/owners', icon: UserCheck },
-  { label: 'Bookings', href: '/bookings', icon: BookOpen },
-  { label: 'Commissions', href: '/commissions', icon: DollarSign },
-  { label: 'Audit Log', href: '/audit-log', icon: ClipboardList },
+  { label: 'Dashboard',   href: '/dashboard',       icon: LayoutDashboard },
+  { label: 'Projects',    href: '/projects',         icon: Building2 },
+  { label: 'Agents',      href: '/agents',           icon: Users },
+  { label: 'Owners',      href: '/owners',           icon: UserCheck },
+  { label: 'Bookings',    href: '/bookings',         icon: BookOpen },
+  { label: 'Commissions', href: '/commissions',      icon: DollarSign },
+  { label: 'Audit Log',   href: '/audit-log',        icon: ClipboardList },
 ]
 
 const agentNav: NavItem[] = [
-  { label: 'Dashboard', href: '/agent/dashboard', icon: LayoutDashboard },
-  { label: 'Projects', href: '/agent/projects', icon: Building2 },
-  { label: 'My Leads', href: '/agent/leads', icon: Share2 },
-  { label: 'Bookings', href: '/agent/bookings', icon: BookOpen },
-  { label: 'Commissions', href: '/agent/commissions', icon: DollarSign },
+  { label: 'Dashboard',   href: '/agent/dashboard',  icon: LayoutDashboard },
+  { label: 'Projects',    href: '/agent/projects',   icon: Building2 },
+  { label: 'My Leads',    href: '/agent/leads',      icon: Share2 },
+  { label: 'Bookings',    href: '/agent/bookings',   icon: BookOpen },
+  { label: 'Commissions', href: '/agent/commissions',icon: DollarSign },
 ]
 
 const ownerNav: NavItem[] = [
-  { label: 'Dashboard', href: '/owner/dashboard', icon: LayoutDashboard },
-  { label: 'My Projects', href: '/owner/projects', icon: Building2 },
-  { label: 'Bookings', href: '/owner/bookings', icon: BookOpen },
-  { label: 'Reports', href: '/owner/reports', icon: TrendingUp },
+  { label: 'Dashboard',   href: '/owner/dashboard',  icon: LayoutDashboard },
+  { label: 'My Projects', href: '/owner/projects',   icon: Building2 },
+  { label: 'Bookings',    href: '/owner/bookings',   icon: BookOpen },
+  { label: 'Reports',     href: '/owner/reports',    icon: TrendingUp },
 ]
 
 interface SidebarProps {
@@ -54,12 +52,16 @@ interface SidebarProps {
   onClose: () => void
 }
 
-export function Sidebar({ open, onClose }: SidebarProps) {
+const NAVY = '#1e3c6e'
+
+export function Sidebar({ open, onClose }: Readonly<SidebarProps>) {
   const { user } = useAuthStore()
   const pathname = usePathname()
 
-  const navItems =
-    user?.role === 'admin' ? adminNav : user?.role === 'agent' ? agentNav : ownerNav
+  let navItems: NavItem[]
+  if (user?.role === 'admin') navItems = adminNav
+  else if (user?.role === 'agent') navItems = agentNav
+  else navItems = ownerNav
 
   const isActive = (href: string) => {
     if (href === '/dashboard' || href === '/agent/dashboard' || href === '/owner/dashboard') {
@@ -72,33 +74,35 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     <>
       {/* Mobile overlay */}
       {open && (
-        <div
-          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          className="fixed inset-0 z-30 lg:hidden"
+          style={{ background: 'rgba(0,0,0,0.45)', border: 'none', cursor: 'default', padding: 0 }}
           onClick={onClose}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={cn(
-          'fixed left-0 top-0 z-40 h-full w-64 bg-[#1e3c6e] flex flex-col transition-transform duration-300 lg:translate-x-0 lg:static lg:z-auto',
-          open ? 'translate-x-0' : '-translate-x-full'
-        )}
+        className={`fixed left-0 top-0 z-40 h-full flex flex-col lg:translate-x-0 lg:static lg:z-auto transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'}`}
+        style={{ width: 240, background: NAVY, flexShrink: 0 }}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-[#1e3c6e] font-black text-sm">A</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 34, height: 34, background: 'white', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ color: NAVY, fontWeight: 900, fontSize: 15, lineHeight: 1 }}>A</span>
             </div>
             <div>
-              <span className="text-white font-bold text-lg tracking-wide">AINO</span>
-              <p className="text-white/50 text-xs -mt-0.5">Real Estate</p>
+              <p style={{ color: 'white', fontWeight: 800, fontSize: 16, letterSpacing: 0.5, margin: 0 }}>AINO</p>
+              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, margin: 0 }}>Real Estate</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="lg:hidden p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+            className="lg:hidden"
+            style={{ padding: 6, borderRadius: 8, background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', display: 'flex' }}
           >
             <X size={18} />
           </button>
@@ -106,22 +110,22 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* User info */}
         {user && (
-          <div className="px-4 py-3 mx-3 mt-3 rounded-xl bg-white/10">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+          <div style={{ margin: '12px 12px 4px', padding: '12px', borderRadius: 12, background: 'rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
                 {user.name?.charAt(0)?.toUpperCase() ?? 'U'}
               </div>
-              <div className="overflow-hidden">
-                <p className="text-white font-medium text-sm truncate">{user.name}</p>
-                <p className="text-white/50 text-xs capitalize">{user.role}</p>
+              <div style={{ overflow: 'hidden' }}>
+                <p style={{ color: 'white', fontWeight: 600, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</p>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, margin: 0, textTransform: 'capitalize' }}>{user.role}</p>
               </div>
             </div>
           </div>
         )}
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3">
-          <ul className="space-y-1">
+        <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
             {navItems.map((item) => {
               const active = isActive(item.href)
               return (
@@ -129,16 +133,23 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                   <Link
                     href={item.href}
                     onClick={onClose}
-                    className={cn(
-                      'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group',
-                      active
-                        ? 'bg-white text-[#1e3c6e]'
-                        : 'text-white/70 hover:bg-white/10 hover:text-white'
-                    )}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      textDecoration: 'none',
+                      fontSize: 13,
+                      fontWeight: active ? 700 : 500,
+                      color: active ? NAVY : 'rgba(255,255,255,0.7)',
+                      background: active ? 'white' : 'transparent',
+                      transition: 'background 0.15s, color 0.15s',
+                    }}
+                    className={active ? '' : 'hover-nav-item'}
                   >
-                    <item.icon size={18} className={active ? 'text-[#1e3c6e]' : ''} />
-                    <span className="flex-1">{item.label}</span>
-                    {active && <ChevronRight size={14} className="text-[#1e3c6e]/50" />}
+                    <item.icon size={17} style={{ color: active ? NAVY : 'rgba(255,255,255,0.65)', flexShrink: 0 }} />
+                    <span style={{ flex: 1 }}>{item.label}</span>
                   </Link>
                 </li>
               )
@@ -147,10 +158,20 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         {/* Footer */}
-        <div className="px-4 py-4 border-t border-white/10">
-          <p className="text-white/30 text-xs text-center">AINO v1.0 &copy; 2025</p>
+        <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
+          <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 11, margin: 0 }}>AINO v1.0 &copy; 2025</p>
         </div>
       </aside>
+
+      <style>{`
+        .hover-nav-item:hover {
+          background: rgba(255,255,255,0.1) !important;
+          color: white !important;
+        }
+        .hover-nav-item:hover svg {
+          color: white !important;
+        }
+      `}</style>
     </>
   )
 }

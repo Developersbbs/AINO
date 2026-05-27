@@ -12,7 +12,9 @@ interface TopBarProps {
   onMenuClick: () => void
 }
 
-export function TopBar({ title, onMenuClick }: TopBarProps) {
+const NAVY = '#1e3c6e'
+
+export function TopBar({ title, onMenuClick }: Readonly<TopBarProps>) {
   const { user, logout } = useAuthStore()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const router = useRouter()
@@ -27,69 +29,85 @@ export function TopBar({ title, onMenuClick }: TopBarProps) {
   }
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-20 shadow-sm">
-      <div className="flex items-center gap-4">
+    <header style={{ height: 60, background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <button
+          type="button"
           onClick={onMenuClick}
-          className="lg:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+          className="lg:hidden"
+          style={{ padding: '6px', borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748b', display: 'flex' }}
         >
           <Menu size={20} />
         </button>
-        <h1 className="text-base font-semibold text-slate-900">{title}</h1>
+        <h1 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>{title}</h1>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         {/* Notifications */}
-        <button className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors relative">
+        <button
+          type="button"
+          style={{ position: 'relative', padding: 8, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748b', display: 'flex' }}
+        >
           <Bell size={18} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+          <span style={{ position: 'absolute', top: 8, right: 8, width: 7, height: 7, background: '#ef4444', borderRadius: '50%', border: '1.5px solid white' }} />
         </button>
 
         {/* User dropdown */}
-        <div className="relative">
+        <div style={{ position: 'relative' }}>
           <button
+            type="button"
             onClick={() => setDropdownOpen((v) => !v)}
-            className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl hover:bg-slate-100 transition-colors"
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px 6px 6px', borderRadius: 12, border: 'none', background: 'transparent', cursor: 'pointer', transition: 'background 0.15s' }}
+            className="hover:bg-slate-100"
           >
-            <div className="w-8 h-8 rounded-full bg-[#1e3c6e] flex items-center justify-center text-white text-sm font-semibold">
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: NAVY, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
               {user?.name?.charAt(0)?.toUpperCase() ?? 'U'}
             </div>
-            <div className="hidden sm:block text-left">
-              <p className="text-sm font-medium text-slate-900 leading-none">{user?.name}</p>
-              <p className="text-xs text-slate-400 capitalize mt-0.5">{user?.role}</p>
+            <div className="hidden sm:block" style={{ textAlign: 'left' }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', margin: 0, lineHeight: 1.2 }}>{user?.name}</p>
+              <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, textTransform: 'capitalize' }}>{user?.role}</p>
             </div>
-            <ChevronDown size={14} className="text-slate-400 hidden sm:block" />
+            <ChevronDown size={13} style={{ color: '#94a3b8' }} className="hidden sm:block" />
           </button>
 
           {dropdownOpen && (
             <>
-              <div
+              <button
+                type="button"
+                aria-label="Close menu"
                 className="fixed inset-0 z-10"
+                style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'default' }}
                 onClick={() => setDropdownOpen(false)}
               />
-              <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-20 py-1.5 overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-slate-100">
-                  <p className="text-xs font-semibold text-slate-900">{user?.name}</p>
-                  <p className="text-xs text-slate-400 capitalize">{user?.role}</p>
+              <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 8, width: 192, background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 20, overflow: 'hidden' }}>
+                <div style={{ padding: '10px 16px 10px', borderBottom: '1px solid #f1f5f9' }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', margin: 0 }}>{user?.name}</p>
+                  <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, textTransform: 'capitalize' }}>{user?.role}</p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => { setDropdownOpen(false); router.push('/profile') }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', fontSize: 13, color: '#374151', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                  className="hover:bg-slate-50"
                 >
-                  <User size={15} /> Profile
+                  <User size={14} /> Profile
                 </button>
                 <button
+                  type="button"
                   onClick={() => { setDropdownOpen(false); router.push('/settings') }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', fontSize: 13, color: '#374151', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                  className="hover:bg-slate-50"
                 >
-                  <Settings size={15} /> Settings
+                  <Settings size={14} /> Settings
                 </button>
-                <div className="border-t border-slate-100 mt-1 pt-1">
+                <div style={{ borderTop: '1px solid #f1f5f9', marginTop: 2, paddingTop: 2 }}>
                   <button
+                    type="button"
                     onClick={() => { setDropdownOpen(false); handleLogout() }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', fontSize: 13, color: '#dc2626', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                    className="hover:bg-red-50"
                   >
-                    <LogOut size={15} /> Logout
+                    <LogOut size={14} /> Logout
                   </button>
                 </div>
               </div>

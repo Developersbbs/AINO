@@ -1,132 +1,202 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { auth } from '@/lib/firebase'
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth'
-import { Input } from '@/components/ui/Input'
-import { Button } from '@/components/ui/Button'
-import { toast } from 'sonner'
-import { Phone, ArrowRight } from 'lucide-react'
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
 import Link from 'next/link'
+import { Building2, Users, TrendingUp, Shield, ArrowRight, Loader2 } from 'lucide-react'
 
-const schema = z.object({
-  phone: z
-    .string()
-    .min(10, 'Enter a valid phone number')
-    .max(10, 'Enter a 10-digit number')
-    .regex(/^\d+$/, 'Digits only'),
-})
-
-type FormData = z.infer<typeof schema>
-
-declare global {
-  interface Window {
-    recaptchaVerifier?: RecaptchaVerifier
-    confirmationResult?: ConfirmationResult
-  }
-}
+const features = [
+  { icon: Building2, text: 'Manage all your real estate projects' },
+  { icon: Users, text: 'Connect agents, owners & admin in one place' },
+  { icon: TrendingUp, text: 'Track bookings, leads & commissions' },
+  { icon: Shield, text: 'Secure role-based access control' },
+]
 
 export default function LoginPage() {
   const router = useRouter()
+  const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
-  const recaptchaContainerRef = useRef<HTMLDivElement>(null)
+  const [error, setError] = useState('')
+  const recaptchaRef = useRef<RecaptchaVerifier | null>(null)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormData>({ resolver: zodResolver(schema) })
-
-  function setupRecaptcha() {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => {},
-      })
+  useEffect(() => {
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+    })
+    verifier.render()
+    recaptchaRef.current = verifier
+    return () => {
+      verifier.clear()
+      recaptchaRef.current = null
     }
-  }
+  }, [])
 
-  async function onSubmit(data: FormData) {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    const digits = phone.replace(/\D/g, '')
+    if (digits.length !== 10) {
+      setError('Enter a valid 10-digit phone number')
+      return
+    }
+    if (!recaptchaRef.current) {
+      setError('reCAPTCHA not ready. Please refresh the page.')
+      return
+    }
     setLoading(true)
     try {
-      setupRecaptcha()
-      const appVerifier = window.recaptchaVerifier!
-      const phoneNumber = `+91${data.phone}`
-      const confirmation = await signInWithPhoneNumber(auth, phoneNumber, appVerifier)
-      window.confirmationResult = confirmation
-      // Store phone in sessionStorage for OTP page
-      sessionStorage.setItem('otp_phone', data.phone)
+      const confirmation = await signInWithPhoneNumber(auth, `+91${digits}`, recaptchaRef.current)
+      sessionStorage.setItem('otp_phone', digits)
       sessionStorage.setItem('otp_flow', 'login')
+      ;(window as any).confirmationResult = confirmation
       router.push('/otp')
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Failed to send OTP'
-      toast.error(msg.includes('invalid-phone') ? 'Invalid phone number' : 'Failed to send OTP. Try again.')
-      window.recaptchaVerifier = undefined
+    } catch {
+      setError('Failed to send OTP. Please try again.')
+      recaptchaRef.current?.clear()
+      recaptchaRef.current = null
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1e3c6e] via-[#2a5298] to-[#1e3c6e] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-[#1e3c6e] px-8 py-8 text-center">
-            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <span className="text-[#1e3c6e] font-black text-2xl">A</span>
+    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      {/* ── Left brand panel ── */}
+      <div
+        style={{
+          flex: '0 0 45%',
+          background: 'linear-gradient(160deg, #1e3c6e 0%, #0f2040 100%)',
+          padding: '48px 56px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+        }}
+        className="hidden lg:flex"
+      >
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 44, height: 44, background: 'white', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ color: '#1e3c6e', fontWeight: 900, fontSize: 20 }}>A</span>
+          </div>
+          <div>
+            <div style={{ color: 'white', fontWeight: 800, fontSize: 20, letterSpacing: -0.5 }}>AINO</div>
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, letterSpacing: 0.5 }}>REAL ESTATE PLATFORM</div>
+          </div>
+        </div>
+
+        {/* Center content */}
+        <div>
+          <h1 style={{ color: 'white', fontSize: 40, fontWeight: 800, lineHeight: 1.15, marginBottom: 16, letterSpacing: -1 }}>
+            The Genuine<br />Property Bank
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16, lineHeight: 1.7, marginBottom: 40 }}>
+            India&apos;s most trusted real estate management platform for agents, owners and administrators.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {features.map(({ icon: Icon, text }) => (
+              <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 36, height: 36, background: 'rgba(255,255,255,0.1)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={16} color="rgba(255,255,255,0.8)" />
+                </div>
+                <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14 }}>{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div style={{ display: 'flex', gap: 32 }}>
+          {[['500+', 'Projects'], ['12K+', 'Plots Sold'], ['3K+', 'Agents']].map(([val, label]) => (
+            <div key={label}>
+              <div style={{ color: 'white', fontSize: 24, fontWeight: 800 }}>{val}</div>
+              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>{label}</div>
             </div>
-            <h1 className="text-2xl font-bold text-white">Welcome to AINO</h1>
-            <p className="text-white/60 text-sm mt-1">Real Estate Management Platform</p>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Right form panel ── */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', background: '#f8fafc' }}>
+        <div style={{ width: '100%', maxWidth: 420 }}>
+          {/* Mobile logo */}
+          <div className="lg:hidden" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
+            <div style={{ width: 40, height: 40, background: '#1e3c6e', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ color: 'white', fontWeight: 900, fontSize: 18 }}>A</span>
+            </div>
+            <span style={{ color: '#1e3c6e', fontWeight: 800, fontSize: 18 }}>AINO</span>
           </div>
 
-          {/* Form */}
-          <div className="px-8 py-8">
-            <h2 className="text-xl font-semibold text-slate-900 mb-1">Sign In</h2>
-            <p className="text-slate-500 text-sm mb-6">Enter your phone number to receive an OTP</p>
+          <div style={{ background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 4px 32px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
+            <div style={{ marginBottom: 32 }}>
+              <h2 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', marginBottom: 6, letterSpacing: -0.5 }}>Welcome back</h2>
+              <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6 }}>Sign in with your registered phone number</p>
+            </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <Input
-                label="Phone Number"
-                leftAddon={
-                  <span className="flex items-center gap-1 text-sm text-slate-600">
-                    <Phone size={14} />
-                    +91
-                  </span>
-                }
-                placeholder="9876543210"
-                maxLength={10}
-                inputMode="numeric"
-                error={errors.phone?.message}
-                {...register('phone')}
-              />
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+                  Phone Number
+                </label>
+                <div style={{ display: 'flex', border: `1.5px solid ${error ? '#ef4444' : '#e2e8f0'}`, borderRadius: 12, overflow: 'hidden', background: 'white', transition: 'border-color 0.15s' }}>
+                  <div style={{ padding: '0 16px', background: '#f1f5f9', borderRight: '1.5px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <span style={{ fontSize: 18 }}>🇮🇳</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#374151' }}>+91</span>
+                  </div>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={e => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); setError('') }}
+                    placeholder="9876543210"
+                    style={{ flex: 1, padding: '14px 16px', border: 'none', outline: 'none', fontSize: 15, color: '#0f172a', background: 'transparent' }}
+                  />
+                </div>
+                {error && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 6 }}>{error}</p>}
+              </div>
 
-              <div id="recaptcha-container" ref={recaptchaContainerRef} />
+              <div id="recaptcha-container" />
 
-              <Button type="submit" loading={loading} className="w-full" size="lg">
-                Send OTP <ArrowRight size={16} />
-              </Button>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  padding: '15px 24px',
+                  background: loading ? '#94a3b8' : '#1e3c6e',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  transition: 'background 0.15s',
+                }}
+              >
+                {loading ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : null}
+                {loading ? 'Sending OTP…' : 'Send OTP'}
+                {!loading && <ArrowRight size={16} />}
+              </button>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-slate-500">
+            <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid #f1f5f9', textAlign: 'center' }}>
+              <p style={{ fontSize: 14, color: '#64748b' }}>
                 New to AINO?{' '}
-                <Link href="/register" className="text-[#1e3c6e] font-semibold hover:underline">
+                <Link href="/register" style={{ color: '#1e3c6e', fontWeight: 700, textDecoration: 'none' }}>
                   Create account
                 </Link>
               </p>
             </div>
           </div>
-        </div>
 
-        <p className="text-center text-white/40 text-xs mt-6">
-          &copy; 2025 AINO. All rights reserved.
-        </p>
+          <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: 12, marginTop: 24 }}>
+            © 2025 AINO. All rights reserved.
+          </p>
+        </div>
       </div>
     </div>
   )

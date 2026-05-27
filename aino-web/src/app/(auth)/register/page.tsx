@@ -1,17 +1,22 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { auth } from '@/lib/firebase'
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth'
-import { Input } from '@/components/ui/Input'
-import { Button } from '@/components/ui/Button'
-import { toast } from 'sonner'
-import { Phone, ArrowRight, User, Mail } from 'lucide-react'
+import { Building2, Users, TrendingUp, Shield, ArrowRight, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { toast } from 'sonner'
+
+const features = [
+  { icon: Building2, text: 'Manage all your real estate projects' },
+  { icon: Users, text: 'Connect agents, owners & admin in one place' },
+  { icon: TrendingUp, text: 'Track bookings, leads & commissions' },
+  { icon: Shield, text: 'Secure role-based access control' },
+]
 
 const schema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -28,7 +33,6 @@ type FormData = z.infer<typeof schema>
 
 declare global {
   interface Window {
-    recaptchaVerifier?: RecaptchaVerifier
     confirmationResult?: ConfirmationResult
     registerData?: { name: string; email?: string; role: string }
   }
@@ -37,132 +41,239 @@ declare global {
 export default function RegisterPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const recaptchaContainerRef = useRef<HTMLDivElement>(null)
-
+  const recaptchaRef = useRef<RecaptchaVerifier | null>(null)
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
-  function setupRecaptcha() {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container-register', {
-        size: 'invisible',
-        callback: () => {},
-      })
+  useEffect(() => {
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-register', {
+      size: 'invisible',
+    })
+    verifier.render()
+    recaptchaRef.current = verifier
+    return () => {
+      verifier.clear()
+      recaptchaRef.current = null
     }
-  }
+  }, [])
 
   async function onSubmit(data: FormData) {
+    if (!recaptchaRef.current) {
+      toast.error('reCAPTCHA not ready. Please refresh the page.')
+      return
+    }
     setLoading(true)
     try {
-      setupRecaptcha()
-      const appVerifier = window.recaptchaVerifier!
       const phoneNumber = `+91${data.phone}`
-      const confirmation = await signInWithPhoneNumber(auth, phoneNumber, appVerifier)
+      const confirmation = await signInWithPhoneNumber(auth, phoneNumber, recaptchaRef.current)
       window.confirmationResult = confirmation
       sessionStorage.setItem('otp_phone', data.phone)
       sessionStorage.setItem('otp_flow', 'register')
-      window.registerData = {
-        name: data.name,
-        email: data.email || undefined,
-        role: data.role,
-      }
+      window.registerData = { name: data.name, email: data.email || undefined, role: data.role }
       sessionStorage.setItem('register_data', JSON.stringify(window.registerData))
       router.push('/otp')
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : ''
       toast.error(msg.includes('invalid-phone') ? 'Invalid phone number' : 'Failed to send OTP. Try again.')
-      window.recaptchaVerifier = undefined
+      recaptchaRef.current?.clear()
+      recaptchaRef.current = null
     } finally {
       setLoading(false)
     }
   }
 
+  const fieldStyle = {
+    width: '100%',
+    padding: '13px 16px',
+    border: '1.5px solid #e2e8f0',
+    borderRadius: 12,
+    fontSize: 15,
+    color: '#0f172a',
+    background: 'white',
+    outline: 'none',
+    transition: 'border-color 0.15s',
+    fontFamily: 'inherit',
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1e3c6e] via-[#2a5298] to-[#1e3c6e] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-          <div className="bg-[#1e3c6e] px-8 py-8 text-center">
-            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <span className="text-[#1e3c6e] font-black text-2xl">A</span>
+    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      {/* ── Left brand panel ── */}
+      <div
+        style={{
+          flex: '0 0 45%',
+          background: 'linear-gradient(160deg, #1e3c6e 0%, #0f2040 100%)',
+          padding: '48px 56px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+        }}
+        className="hidden lg:flex"
+      >
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 44, height: 44, background: 'white', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ color: '#1e3c6e', fontWeight: 900, fontSize: 20 }}>A</span>
+          </div>
+          <div>
+            <div style={{ color: 'white', fontWeight: 800, fontSize: 20, letterSpacing: -0.5 }}>AINO</div>
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, letterSpacing: 0.5 }}>REAL ESTATE PLATFORM</div>
+          </div>
+        </div>
+
+        {/* Center content */}
+        <div>
+          <h1 style={{ color: 'white', fontSize: 40, fontWeight: 800, lineHeight: 1.15, marginBottom: 16, letterSpacing: -1 }}>
+            The Genuine<br />Property Bank
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16, lineHeight: 1.7, marginBottom: 40 }}>
+            India&apos;s most trusted real estate management platform for agents, owners and administrators.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {features.map(({ icon: Icon, text }) => (
+              <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 36, height: 36, background: 'rgba(255,255,255,0.1)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={16} color="rgba(255,255,255,0.8)" />
+                </div>
+                <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14 }}>{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div style={{ display: 'flex', gap: 32 }}>
+          {[['500+', 'Projects'], ['12K+', 'Plots Sold'], ['3K+', 'Agents']].map(([val, label]) => (
+            <div key={label}>
+              <div style={{ color: 'white', fontSize: 24, fontWeight: 800 }}>{val}</div>
+              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>{label}</div>
             </div>
-            <h1 className="text-2xl font-bold text-white">Join AINO</h1>
-            <p className="text-white/60 text-sm mt-1">Create your account to get started</p>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Right form panel ── */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', background: '#f8fafc', overflowY: 'auto' }}>
+        <div style={{ width: '100%', maxWidth: 440 }}>
+          {/* Mobile logo */}
+          <div className="lg:hidden" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
+            <div style={{ width: 40, height: 40, background: '#1e3c6e', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ color: 'white', fontWeight: 900, fontSize: 18 }}>A</span>
+            </div>
+            <span style={{ color: '#1e3c6e', fontWeight: 800, fontSize: 18 }}>AINO</span>
           </div>
 
-          <div className="px-8 py-8">
-            <h2 className="text-xl font-semibold text-slate-900 mb-1">Create Account</h2>
-            <p className="text-slate-500 text-sm mb-6">Fill in your details below</p>
+          <div style={{ background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 4px 32px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
+            <div style={{ marginBottom: 28 }}>
+              <h2 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', marginBottom: 6, letterSpacing: -0.5 }}>Create account</h2>
+              <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6 }}>Join AINO — it only takes a minute</p>
+            </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <Input
-                label="Full Name"
-                leftAddon={<User size={14} />}
-                placeholder="John Doe"
-                error={errors.name?.message}
-                {...register('name')}
-              />
+            <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {/* Full Name */}
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 }}>Full Name</label>
+                <input
+                  type="text"
+                  placeholder="John Doe"
+                  style={{ ...fieldStyle, borderColor: errors.name ? '#ef4444' : '#e2e8f0' }}
+                  {...register('name')}
+                />
+                {errors.name && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 5 }}>{errors.name.message}</p>}
+              </div>
 
-              <Input
-                label="Phone Number"
-                leftAddon={
-                  <span className="flex items-center gap-1 text-sm text-slate-600">
-                    <Phone size={14} />
-                    +91
-                  </span>
-                }
-                placeholder="9876543210"
-                maxLength={10}
-                inputMode="numeric"
-                error={errors.phone?.message}
-                {...register('phone')}
-              />
+              {/* Phone */}
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 }}>Phone Number</label>
+                <div style={{ display: 'flex', border: `1.5px solid ${errors.phone ? '#ef4444' : '#e2e8f0'}`, borderRadius: 12, overflow: 'hidden', background: 'white' }}>
+                  <div style={{ padding: '0 16px', background: '#f1f5f9', borderRight: '1.5px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <span style={{ fontSize: 18 }}>🇮🇳</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#374151' }}>+91</span>
+                  </div>
+                  <input
+                    type="tel"
+                    placeholder="9876543210"
+                    maxLength={10}
+                    style={{ flex: 1, padding: '13px 16px', border: 'none', outline: 'none', fontSize: 15, color: '#0f172a', background: 'transparent', fontFamily: 'inherit' }}
+                    {...register('phone')}
+                  />
+                </div>
+                {errors.phone && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 5 }}>{errors.phone.message}</p>}
+              </div>
 
-              <Input
-                label="Email (optional)"
-                leftAddon={<Mail size={14} />}
-                placeholder="john@example.com"
-                type="email"
-                error={errors.email?.message}
-                {...register('email')}
-              />
+              {/* Email */}
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 }}>
+                  Email <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span>
+                </label>
+                <input
+                  type="email"
+                  placeholder="john@example.com"
+                  style={{ ...fieldStyle, borderColor: errors.email ? '#ef4444' : '#e2e8f0' }}
+                  {...register('email')}
+                />
+                {errors.email && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 5 }}>{errors.email.message}</p>}
+              </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-slate-700">Role</label>
+              {/* Role */}
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 }}>Role</label>
                 <select
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1e3c6e]/30 focus:border-[#1e3c6e]"
+                  style={{ ...fieldStyle, borderColor: errors.role ? '#ef4444' : '#e2e8f0', cursor: 'pointer' }}
                   {...register('role')}
                 >
                   <option value="">Select your role</option>
                   <option value="agent">Agent</option>
                   <option value="owner">Owner</option>
                 </select>
-                {errors.role && <p className="text-xs text-red-500">{errors.role.message}</p>}
+                {errors.role && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 5 }}>{errors.role.message}</p>}
               </div>
 
-              <div id="recaptcha-container-register" ref={recaptchaContainerRef} />
+              <div id="recaptcha-container-register" />
 
-              <Button type="submit" loading={loading} className="w-full" size="lg">
-                Send OTP <ArrowRight size={16} />
-              </Button>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  padding: '15px 24px',
+                  background: loading ? '#94a3b8' : '#1e3c6e',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  transition: 'background 0.15s',
+                  marginTop: 4,
+                }}
+              >
+                {loading ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : null}
+                {loading ? 'Sending OTP…' : 'Send OTP'}
+                {!loading && <ArrowRight size={16} />}
+              </button>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-slate-500">
+            <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid #f1f5f9', textAlign: 'center' }}>
+              <p style={{ fontSize: 14, color: '#64748b' }}>
                 Already have an account?{' '}
-                <Link href="/login" className="text-[#1e3c6e] font-semibold hover:underline">
+                <Link href="/login" style={{ color: '#1e3c6e', fontWeight: 700, textDecoration: 'none' }}>
                   Sign in
                 </Link>
               </p>
             </div>
           </div>
-        </div>
 
-        <p className="text-center text-white/40 text-xs mt-6">
-          &copy; 2025 AINO. All rights reserved.
-        </p>
+          <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: 12, marginTop: 24 }}>
+            © 2025 AINO. All rights reserved.
+          </p>
+        </div>
       </div>
     </div>
   )
