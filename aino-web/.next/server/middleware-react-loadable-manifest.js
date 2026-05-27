@@ -1,1 +1,0 @@
-self.__REACT_LOADABLE_MANIFEST="{\"app/book/[shareToken]/PlotMapClient.tsx -> ./LayoutMap\":{\"id\":\"app/book/[shareToken]/PlotMapClient.tsx -> ./LayoutMap\",\"files\":[\"static/css/_app-pages-browser_app_book_shareToken_LayoutMap_tsx.css\",\"static/chunks/_app-pages-browser_app_book_shareToken_LayoutMap_tsx.js\"]}}"

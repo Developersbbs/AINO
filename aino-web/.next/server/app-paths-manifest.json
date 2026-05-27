@@ -1,5 +1,0 @@
-{
-  "/api/track/[shareToken]/route": "app/api/track/[shareToken]/route.js",
-  "/_not-found/page": "app/_not-found/page.js",
-  "/book/[shareToken]/page": "app/book/[shareToken]/page.js"
-}
