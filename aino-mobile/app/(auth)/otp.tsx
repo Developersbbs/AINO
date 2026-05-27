@@ -16,6 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { auth } from '@/config/firebase';
 import { signInWithPhoneNumber } from 'firebase/auth';
+import rnAuth from '@react-native-firebase/auth';
 import api from '@/src/api/client';
 import { useAuthStore } from '@/src/stores/useAuthStore';
 import type { AuthUser } from '@/src/stores/useAuthStore';
@@ -233,7 +234,8 @@ export default function OtpScreen() {
         const result = await signInWithPhoneNumber(auth, phone, getVerifier() as any);
         setConfirmation(result);
       } else {
-        await api.post('/auth/send-otp', { phone });
+        const confirmation = await rnAuth().signInWithPhoneNumber(phone);
+        setConfirmation(confirmation);
       }
       setDigits(new Array(DIGIT_COUNT).fill(''));
       inputs.current[0]?.focus();

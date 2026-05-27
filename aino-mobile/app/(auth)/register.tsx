@@ -16,10 +16,10 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { auth } from '@/config/firebase';
 import { signInWithPhoneNumber } from 'firebase/auth';
+import rnAuth from '@react-native-firebase/auth';
 import { setConfirmation } from '@/src/lib/phoneAuth';
 import { useRecaptchaVerifier } from '../../hooks/use-recaptcha-verifier';
 import { shadow } from '@/src/lib/shadow';
-import api from '@/src/api/client';
 
 type Role = 'Agent' | 'Owner';
 
@@ -50,17 +50,14 @@ export default function RegisterScreen() {
       if (Platform.OS === 'web') {
         const result = await signInWithPhoneNumber(auth, fullPhone, getVerifier() as any);
         setConfirmation(result);
-        router.push({
-          pathname: '/(auth)/otp' as any,
-          params: { phone: fullPhone, name: name.trim(), email: email.trim(), role, mode: 'register' },
-        });
       } else {
-        await api.post('/auth/send-otp', { phone: fullPhone });
-        router.push({
-          pathname: '/(auth)/otp' as any,
-          params: { phone: fullPhone, name: name.trim(), email: email.trim(), role, mode: 'web-register' },
-        });
+        const confirmation = await rnAuth().signInWithPhoneNumber(fullPhone);
+        setConfirmation(confirmation);
       }
+      router.push({
+        pathname: '/(auth)/otp' as any,
+        params: { phone: fullPhone, name: name.trim(), email: email.trim(), role, mode: 'register' },
+      });
     } catch (err: any) {
       if (Platform.OS === 'web') clearWebVerifier();
       Alert.alert('Failed', err.response?.data?.message ?? err.message ?? 'Could not send OTP. Try again.');

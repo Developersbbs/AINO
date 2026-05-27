@@ -19,9 +19,9 @@ import { Feather } from '@expo/vector-icons';
 import { shadow } from '@/src/lib/shadow';
 import { auth } from '@/config/firebase';
 import { signInWithPhoneNumber } from 'firebase/auth';
+import rnAuth from '@react-native-firebase/auth';
 import { setConfirmation } from '@/src/lib/phoneAuth';
 import { useRecaptchaVerifier } from '../../hooks/use-recaptcha-verifier';
-import api from '@/src/api/client';
 
 const GREEN = '#1e3c6e';
 const SCREEN_H = Dimensions.get('window').height;
@@ -43,11 +43,11 @@ export default function LoginScreen() {
       if (Platform.OS === 'web') {
         const result = await signInWithPhoneNumber(auth, fullPhone, getVerifier() as any);
         setConfirmation(result);
-        router.push({ pathname: '/(auth)/otp' as any, params: { phone: fullPhone } });
       } else {
-        await api.post('/auth/send-otp', { phone: fullPhone });
-        router.push({ pathname: '/(auth)/otp' as any, params: { phone: fullPhone, mode: 'web-otp' } });
+        const confirmation = await rnAuth().signInWithPhoneNumber(fullPhone);
+        setConfirmation(confirmation);
       }
+      router.push({ pathname: '/(auth)/otp' as any, params: { phone: fullPhone } });
     } catch (err: any) {
       if (Platform.OS === 'web') clearWebVerifier();
       Alert.alert('Failed', err.response?.data?.message ?? err.message ?? 'Could not send OTP. Try again.');
