@@ -1,7 +1,7 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence, browserLocalPersistence } from 'firebase/auth';
-import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeAuth, getAuth, browserLocalPersistence } from 'firebase/auth';
+import type { Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -12,12 +12,19 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+// Firebase is only used on web — native OTP goes through the backend API.
+// Skipping init on native prevents a crash when Firebase env vars are absent
+// from the EAS build (EAS does not load .env.local).
+function initWebAuth(): Auth | null {
+  if (Platform.OS !== 'web') return null;
+  const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  try {
+    return initializeAuth(app, { persistence: browserLocalPersistence });
+  } catch {
+    return getAuth(app);
+  }
+}
 
-const auth = initializeAuth(app, {
-  persistence: Platform.OS === 'web'
-    ? browserLocalPersistence
-    : getReactNativePersistence(ReactNativeAsyncStorage),
-});
-
-export { app, auth };
+// Callers only access `auth` inside `Platform.OS === 'web'` guards, so the
+// null-on-native value is never reached at runtime.
+export const auth = initWebAuth() as Auth;
