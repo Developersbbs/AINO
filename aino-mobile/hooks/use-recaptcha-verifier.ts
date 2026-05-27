@@ -1,14 +1,12 @@
 import { useRef } from 'react';
 import { Platform } from 'react-native';
 import { RecaptchaVerifier } from 'firebase/auth';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import { auth } from '../config/firebase';
 
 export function useRecaptchaVerifier() {
-  const nativeRef = useRef<FirebaseRecaptchaVerifierModal>(null);
   const webVerifierRef = useRef<RecaptchaVerifier | null>(null);
 
-  const getVerifier = (): FirebaseRecaptchaVerifierModal | RecaptchaVerifier => {
+  const getVerifier = (): RecaptchaVerifier | null => {
     if (Platform.OS === 'web') {
       if (!webVerifierRef.current) {
         webVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
@@ -17,7 +15,7 @@ export function useRecaptchaVerifier() {
       }
       return webVerifierRef.current;
     }
-    return nativeRef.current!;
+    return null;
   };
 
   const clearWebVerifier = () => {
@@ -27,5 +25,5 @@ export function useRecaptchaVerifier() {
     }
   };
 
-  return { nativeRef, getVerifier, clearWebVerifier };
+  return { getVerifier, clearWebVerifier };
 }
