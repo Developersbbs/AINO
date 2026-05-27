@@ -1,8 +1,14 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import https from 'node:https';
+import twilio from 'twilio';
 import prisma from '../../config/database';
 import redis from '../../config/redis';
+
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN,
+);
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'access-secret';
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh-secret';
@@ -30,6 +36,12 @@ export const sendOtp = async (phone: string): Promise<string> => {
   if (process.env.NODE_ENV !== 'production') {
     console.log(`\n[DEV OTP] ${phone} → ${otp}\n`);
   }
+
+  await twilioClient.messages.create({
+    body: `Your AINO verification code is: ${otp}. Valid for 10 minutes.`,
+    from: process.env.TWILIO_PHONE_NUMBER!,
+    to: phone,
+  });
 
   return otp;
 };
