@@ -21,19 +21,27 @@ interface Project {
   description?: string
 }
 
+function priceLabel(project: Project): string {
+  if (project.priceMin && project.priceMax) {
+    return `${formatCurrency(project.priceMin)} – ${formatCurrency(project.priceMax)}`
+  }
+  if (project.priceMin) return `From ${formatCurrency(project.priceMin)}`
+  return ''
+}
+
 export default function OwnerProjectsPage() {
   const router = useRouter()
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ['owner-projects'],
-    queryFn: () => api.get('/owner/projects').then((r) => r.data?.projects ?? r.data),
+    queryFn: () => api.get('/owner/projects').then((r) => (Array.isArray(r.data) ? r.data : [])),
   })
 
   if (isLoading) {
     return (
-      <div className="space-y-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="bg-white border border-slate-200 rounded-xl h-32 animate-pulse" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {['p1', 'p2', 'p3'].map((k) => (
+          <div key={k} style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, height: 128 }} className="animate-pulse" />
         ))}
       </div>
     )
@@ -44,57 +52,54 @@ export default function OwnerProjectsPage() {
   }
 
   return (
-    <div className="space-y-3">
-      {projects.map((project) => (
-        <div
-          key={project.id}
-          className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => router.push(`/owner/projects/${project.id}`)}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-semibold text-slate-900">{project.name}</h3>
-                <Badge status={project.status} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {projects.map((project) => {
+        const price = priceLabel(project)
+        return (
+          <button
+            key={project.id}
+            type="button"
+            onClick={() => router.push(`/owner/projects/${project.id}`)}
+            style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: '20px', cursor: 'pointer', width: '100%', textAlign: 'left' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: 0 }}>{project.name}</h3>
+                  <Badge status={project.status} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8', fontSize: 12, marginBottom: 6 }}>
+                  <MapPin size={11} />
+                  <span>{project.location}</span>
+                </div>
+                {project.description && (
+                  <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>{project.description}</p>
+                )}
               </div>
-              <div className="flex items-center gap-1 text-slate-400 text-xs mb-2">
-                <MapPin size={11} />
-                {project.location}
+              <ChevronRight size={18} style={{ color: '#cbd5e1', flexShrink: 0 }} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
+              <div>
+                <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</p>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>{project.totalUnits}</p>
               </div>
-              {project.description && (
-                <p className="text-slate-500 text-sm line-clamp-2">{project.description}</p>
-              )}
+              <div>
+                <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Available</p>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#059669', margin: 0 }}>{project.availableUnits}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sold</p>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#ef4444', margin: 0 }}>{project.soldUnits ?? 0}</p>
+              </div>
             </div>
-            <ChevronRight size={18} className="text-slate-300 flex-shrink-0 mt-1" />
-          </div>
 
-          <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-100">
-            <div>
-              <p className="text-xs text-slate-400">Total Units</p>
-              <p className="font-semibold text-slate-900">{project.totalUnits}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Available</p>
-              <p className="font-semibold text-emerald-600">{project.availableUnits}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Sold</p>
-              <p className="font-semibold text-red-500">{project.soldUnits ?? 0}</p>
-            </div>
-          </div>
-
-          {(project.priceMin || project.priceMax) && (
-            <p className="text-xs text-slate-500 mt-2">
-              Price:{' '}
-              {project.priceMin && project.priceMax
-                ? `${formatCurrency(project.priceMin)} – ${formatCurrency(project.priceMax)}`
-                : project.priceMin
-                ? `From ${formatCurrency(project.priceMin)}`
-                : ''}
-            </p>
-          )}
-        </div>
-      ))}
+            {price && (
+              <p style={{ fontSize: 12, color: '#64748b', marginTop: 10, marginBottom: 0 }}>Price: {price}</p>
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }

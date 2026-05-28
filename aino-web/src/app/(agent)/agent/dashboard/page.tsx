@@ -3,7 +3,6 @@
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { StatCard } from '@/components/ui/StatCard'
-import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { Share2, BookOpen, DollarSign, TrendingUp, Activity } from 'lucide-react'
@@ -30,9 +29,9 @@ export default function AgentDashboard() {
     queryKey: ['agent-dashboard'],
     queryFn: () =>
       Promise.all([
-        api.get('/leads/my').then((r) => r.data?.leads ?? r.data),
-        api.get('/bookings/my').then((r) => r.data?.bookings ?? r.data),
-        api.get('/commissions/my').then((r) => r.data?.commissions ?? r.data),
+        api.get('/leads/my').then((r) => (Array.isArray(r.data) ? r.data : [])),
+        api.get('/bookings/my').then((r) => (Array.isArray(r.data) ? r.data : [])),
+        api.get('/commissions/my').then((r) => (Array.isArray(r.data) ? r.data : [])),
       ]).then(([leads, bookings, commissions]) => ({
         stats: {
           totalLeads: leads?.length ?? 0,
@@ -49,10 +48,10 @@ export default function AgentDashboard() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white border border-slate-200 rounded-xl h-24 animate-pulse" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          {['s1', 's2', 's3', 's4'].map((k) => (
+            <div key={k} style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, height: 96 }} className="animate-pulse" />
           ))}
         </div>
       </div>
@@ -60,63 +59,47 @@ export default function AgentDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="My Leads"
-          value={data?.stats.totalLeads ?? 0}
-          icon={Share2}
-          iconBg="bg-blue-50"
-          iconColor="text-blue-600"
-        />
-        <StatCard
-          label="Bookings"
-          value={data?.stats.totalBookings ?? 0}
-          icon={BookOpen}
-          iconBg="bg-amber-50"
-          iconColor="text-amber-600"
-        />
-        <StatCard
-          label="Total Earned"
-          value={formatCurrency(data?.stats.totalCommissions ?? 0)}
-          icon={DollarSign}
-          iconBg="bg-emerald-50"
-          iconColor="text-emerald-600"
-        />
-        <StatCard
-          label="Pending"
-          value={data?.stats.pendingCommissions ?? 0}
-          icon={TrendingUp}
-          iconBg="bg-red-50"
-          iconColor="text-red-500"
-        />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+        <StatCard label="My Leads" value={data?.stats.totalLeads ?? 0} icon={Share2} iconBg="#eff6ff" iconColor="#2563eb" />
+        <StatCard label="Bookings" value={data?.stats.totalBookings ?? 0} icon={BookOpen} iconBg="#fffbeb" iconColor="#d97706" />
+        <StatCard label="Total Earned" value={formatCurrency(data?.stats.totalCommissions ?? 0)} icon={DollarSign} iconBg="#f0fdf4" iconColor="#059669" />
+        <StatCard label="Pending" value={data?.stats.pendingCommissions ?? 0} icon={TrendingUp} iconBg="#fef2f2" iconColor="#ef4444" />
       </div>
 
-      {/* Recent Leads */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">Recent Leads</h2>
+      <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0 }}>Recent Leads</h2>
         </div>
-        {!data?.recentLeads?.length ? (
-          <EmptyState icon={Activity} title="No leads yet" description="Generate share links from the Projects page" />
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {data.recentLeads.map((lead) => (
-              <div key={lead.id} className="px-5 py-3.5 flex items-center justify-between">
+        {data?.recentLeads && data.recentLeads.length > 0 ? (
+          <div>
+            {data.recentLeads.map((lead, i) => (
+              <div
+                key={lead.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 20px',
+                  borderBottom: i < data.recentLeads.length - 1 ? '1px solid #f1f5f9' : 'none',
+                }}
+              >
                 <div>
-                  <p className="text-sm font-medium text-slate-900">{lead.project?.name}</p>
-                  <p className="text-xs text-slate-400 font-mono mt-0.5">{lead.shareToken}</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', margin: 0 }}>{lead.project?.name}</p>
+                  <p style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace', marginTop: 2 }}>{lead.shareToken}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-slate-600">
-                    <span className="font-semibold">{lead.clicks}</span> clicks,{' '}
-                    <span className="font-semibold text-emerald-600">{lead.conversions}</span> conv.
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: 12, color: '#374151', margin: 0 }}>
+                    <span style={{ fontWeight: 600 }}>{lead.clicks}</span> clicks,{' '}
+                    <span style={{ fontWeight: 600, color: '#059669' }}>{lead.conversions}</span> conv.
                   </p>
-                  <p className="text-xs text-slate-400 mt-0.5">{formatDateTime(lead.createdAt)}</p>
+                  <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{formatDateTime(lead.createdAt)}</p>
                 </div>
               </div>
             ))}
           </div>
+        ) : (
+          <EmptyState icon={Activity} title="No leads yet" description="Generate share links from the Projects page" />
         )}
       </div>
     </div>

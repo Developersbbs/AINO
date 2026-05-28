@@ -91,8 +91,9 @@ export function Sidebar({ open, onClose }: Readonly<SidebarProps>) {
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 34, height: 34, background: 'white', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ color: NAVY, fontWeight: 900, fontSize: 15, lineHeight: 1 }}>A</span>
+            <div style={{ width: 34, height: 34, background: 'white', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/aino-logo.png" alt="AINO" style={{ width: 30, height: 30, objectFit: 'contain' }} />
             </div>
             <div>
               <p style={{ color: 'white', fontWeight: 800, fontSize: 16, letterSpacing: 0.5, margin: 0 }}>AINO</p>

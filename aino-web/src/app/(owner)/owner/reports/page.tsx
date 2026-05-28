@@ -43,13 +43,13 @@ export default function OwnerReportsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white border border-slate-200 rounded-xl h-24 animate-pulse" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          {['s1', 's2', 's3', 's4'].map((k) => (
+            <div key={k} style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, height: 96 }} className="animate-pulse" />
           ))}
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl h-64 animate-pulse" />
+        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, height: 256 }} className="animate-pulse" />
       </div>
     )
   }
@@ -59,43 +59,17 @@ export default function OwnerReportsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total Revenue"
-          value={formatCurrency(data.summary.totalRevenue ?? 0)}
-          icon={DollarSign}
-          iconBg="bg-emerald-50"
-          iconColor="text-emerald-600"
-        />
-        <StatCard
-          label="Units Sold"
-          value={data.summary.totalSold ?? 0}
-          icon={Home}
-          iconBg="bg-blue-50"
-          iconColor="text-blue-600"
-        />
-        <StatCard
-          label="Total Bookings"
-          value={data.summary.totalBookings ?? 0}
-          icon={TrendingUp}
-          iconBg="bg-purple-50"
-          iconColor="text-purple-600"
-        />
-        <StatCard
-          label="Avg. Price"
-          value={formatCurrency(data.summary.averagePrice ?? 0)}
-          icon={BarChart2}
-          iconBg="bg-amber-50"
-          iconColor="text-amber-600"
-        />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+        <StatCard label="Total Revenue" value={formatCurrency(data.summary.totalRevenue ?? 0)} icon={DollarSign} iconBg="#f0fdf4" iconColor="#059669" />
+        <StatCard label="Units Sold" value={data.summary.totalSold ?? 0} icon={Home} iconBg="#eff6ff" iconColor="#2563eb" />
+        <StatCard label="Total Bookings" value={data.summary.totalBookings ?? 0} icon={TrendingUp} iconBg="#faf5ff" iconColor="#9333ea" />
+        <StatCard label="Avg. Price" value={formatCurrency(data.summary.averagePrice ?? 0)} icon={BarChart2} iconBg="#fffbeb" iconColor="#d97706" />
       </div>
 
-      {/* Monthly Sales Chart */}
       {data.monthlySales?.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-          <h2 className="font-semibold text-slate-900 mb-4">Monthly Sales</h2>
+        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: 24 }}>
+          <p style={{ fontWeight: 700, color: '#0f172a', fontSize: 14, margin: '0 0 16px' }}>Monthly Sales</p>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={data.monthlySales}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -108,31 +82,16 @@ export default function OwnerReportsPage() {
                 ]}
               />
               <Legend />
-              <Line
-                type="monotone"
-                dataKey="sold"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                name="sold"
-                dot={{ r: 4 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="revenue"
-                stroke="#1e3c6e"
-                strokeWidth={2}
-                name="revenue"
-                dot={{ r: 4 }}
-              />
+              <Line type="monotone" dataKey="sold" stroke="#3b82f6" strokeWidth={2} name="sold" dot={{ r: 4 }} />
+              <Line type="monotone" dataKey="revenue" stroke="#1e3c6e" strokeWidth={2} name="revenue" dot={{ r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {/* Project Breakdown */}
       {data.projectBreakdown?.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-          <h2 className="font-semibold text-slate-900 mb-4">Project Breakdown</h2>
+        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: 24 }}>
+          <p style={{ fontWeight: 700, color: '#0f172a', fontSize: 14, margin: '0 0 16px' }}>Project Breakdown</p>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={data.projectBreakdown}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />

@@ -12,12 +12,9 @@ import { formatDateTime } from '@/lib/utils'
 
 interface AuditLog {
   id: string
-  user: { name: string; role: string }
   action: string
-  resource: string
-  resourceId?: string
-  createdAt: string
-  ipAddress?: string
+  actor_name: string
+  created_at: string
 }
 
 interface AuditResponse {
@@ -35,10 +32,11 @@ export default function AuditLogPage() {
 
   const { data, isLoading } = useQuery<AuditResponse>({
     queryKey: ['audit-log', page],
-    queryFn: () =>
-      api
-        .get('/admin/audit-log', { params: { page, pageSize: PAGE_SIZE } })
-        .then((r) => r.data),
+    queryFn: async () => {
+      const r = await api.get('/admin/audit-log', { params: { page, pageSize: PAGE_SIZE } })
+      const d = r.data as AuditResponse
+      return { logs: d?.logs ?? [], total: d?.total ?? 0, page: d?.page ?? 1, pageSize: d?.pageSize ?? PAGE_SIZE }
+    },
   })
 
   const logs = data?.logs ?? []
@@ -47,60 +45,66 @@ export default function AuditLogPage() {
 
   const filtered = logs.filter(
     (l) =>
-      l.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      l.action?.toLowerCase().includes(search.toLowerCase()) ||
-      l.resource?.toLowerCase().includes(search.toLowerCase())
+      l.actor_name?.toLowerCase().includes(search.toLowerCase()) ||
+      l.action?.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-3 items-center">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <style>{`.tbl-row:hover { background: #f8fafc; } .tbl-row:last-child { border-bottom: none; }`}</style>
+
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 36, height: 36, background: '#f8fafc', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0' }}>
+            <ClipboardList size={18} style={{ color: '#64748b' }} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: 0 }}>Audit Log</h2>
+            <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>{total} total entries</p>
+          </div>
+        </div>
         <Input
-          placeholder="Search logs..."
-          leftAddon={<Search size={14} />}
+          placeholder="Search logs…"
+          leftAddon={<Search size={13} />}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
         />
-        <p className="text-sm text-slate-400">{total} total entries</p>
       </div>
 
-      {isLoading ? (
-        <div className="bg-white border border-slate-200 rounded-xl h-64 animate-pulse" />
-      ) : filtered.length === 0 ? (
-        <EmptyState icon={ClipboardList} title="No audit logs found" />
-      ) : (
+      {/* Content */}
+      {isLoading && (
+        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, height: 240 }} className="animate-pulse" />
+      )}
+      {!isLoading && filtered.length === 0 && (
+        <EmptyState icon={ClipboardList} title="No audit logs found" description="Platform actions will be recorded here" />
+      )}
+      {!isLoading && filtered.length > 0 && (
         <Table>
           <Thead>
             <tr>
-              <Th>User</Th>
-              <Th>Role</Th>
+              <Th>Actor</Th>
               <Th>Action</Th>
-              <Th>Resource</Th>
-              <Th>IP Address</Th>
               <Th>Timestamp</Th>
             </tr>
           </Thead>
           <Tbody>
             {filtered.map((log) => (
               <Tr key={log.id}>
-                <Td><span className="font-medium text-slate-900">{log.user?.name}</span></Td>
                 <Td>
-                  <span className="capitalize text-slate-600 text-xs">{log.user?.role}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#64748b', flexShrink: 0 }}>
+                      {log.actor_name?.charAt(0)?.toUpperCase() ?? '?'}
+                    </div>
+                    <span style={{ fontWeight: 600, color: '#0f172a' }}>{log.actor_name ?? '—'}</span>
+                  </div>
                 </Td>
                 <Td>
-                  <code className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-700">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', background: '#f1f5f9', borderRadius: 6, fontSize: 11, fontWeight: 600, color: '#374151', fontFamily: 'monospace' }}>
                     {log.action}
-                  </code>
+                  </span>
                 </Td>
-                <Td>
-                  <span className="text-slate-600">{log.resource}</span>
-                  {log.resourceId && (
-                    <span className="text-slate-400 text-xs ml-1">#{log.resourceId.slice(0, 8)}</span>
-                  )}
-                </Td>
-                <Td>{log.ipAddress ?? '—'}</Td>
-                <Td className="text-slate-500">{formatDateTime(log.createdAt)}</Td>
+                <Td>{log.created_at ? formatDateTime(log.created_at) : '—'}</Td>
               </Tr>
             ))}
           </Tbody>
@@ -109,25 +113,13 @@ export default function AuditLogPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between py-2">
-          <p className="text-sm text-slate-500">
-            Page {page} of {totalPages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4 }}>
+          <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Page {page} of {totalPages}</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
               <ChevronLeft size={14} /> Prev
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-            >
+            <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
               Next <ChevronRight size={14} />
             </Button>
           </div>

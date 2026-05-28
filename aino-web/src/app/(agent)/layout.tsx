@@ -39,21 +39,18 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
 
   if (!isLoaded || !user || user.role !== 'agent') {
     return (
-      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-[#1e3c6e] border-t-transparent rounded-full animate-spin" />
+      <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 32, height: 32, border: '4px solid #1e3c6e', borderTopColor: 'transparent', borderRadius: '50%' }} className="animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="flex h-screen bg-[#f8fafc] overflow-hidden">
+    <div style={{ display: 'flex', height: '100vh', background: '#f8fafc', overflow: 'hidden' }}>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col min-w-0">
-        <TopBar
-          title={getPageTitle(pathname)}
-          onMenuClick={() => setSidebarOpen(true)}
-        />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <TopBar title={getPageTitle(pathname)} onMenuClick={() => setSidebarOpen(true)} />
+        <main style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>{children}</main>
       </div>
     </div>
   )

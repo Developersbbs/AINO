@@ -27,7 +27,18 @@ function processQueue(error: unknown, token: string | null) {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Unwrap the standard { success, message, data } envelope from every response
+    if (
+      response.data &&
+      typeof response.data === 'object' &&
+      'success' in response.data &&
+      'data' in response.data
+    ) {
+      return { ...response, data: response.data.data }
+    }
+    return response
+  },
   async (error) => {
     const originalRequest = error.config
 

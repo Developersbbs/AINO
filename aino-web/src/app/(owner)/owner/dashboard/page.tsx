@@ -21,12 +21,18 @@ interface OwnerProject {
   priceMax?: number
 }
 
+function priceLabel(p: OwnerProject): string {
+  if (p.priceMin && p.priceMax) return `${formatCurrency(p.priceMin)} – ${formatCurrency(p.priceMax)}`
+  if (p.priceMin) return `From ${formatCurrency(p.priceMin)}`
+  return ''
+}
+
 export default function OwnerDashboard() {
   const router = useRouter()
 
   const { data: projects = [], isLoading } = useQuery<OwnerProject[]>({
     queryKey: ['owner-projects'],
-    queryFn: () => api.get('/owner/projects').then((r) => r.data?.projects ?? r.data),
+    queryFn: () => api.get('/owner/projects').then((r) => (Array.isArray(r.data) ? r.data : [])),
   })
 
   const totalUnits = projects.reduce((s, p) => s + (p.totalUnits ?? 0), 0)
@@ -34,76 +40,68 @@ export default function OwnerDashboard() {
   const availableUnits = projects.reduce((s, p) => s + (p.availableUnits ?? 0), 0)
 
   return (
-    <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="My Projects"
-          value={projects.length}
-          icon={Building2}
-          iconBg="bg-blue-50"
-          iconColor="text-blue-600"
-        />
-        <StatCard
-          label="Total Units"
-          value={totalUnits}
-          icon={Home}
-          iconBg="bg-purple-50"
-          iconColor="text-purple-600"
-        />
-        <StatCard
-          label="Sold"
-          value={soldUnits}
-          icon={CheckCircle}
-          iconBg="bg-emerald-50"
-          iconColor="text-emerald-600"
-        />
-        <StatCard
-          label="Available"
-          value={availableUnits}
-          icon={TrendingUp}
-          iconBg="bg-amber-50"
-          iconColor="text-amber-600"
-        />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+        <StatCard label="My Projects" value={projects.length} icon={Building2} iconBg="#eff6ff" iconColor="#2563eb" />
+        <StatCard label="Total Units" value={totalUnits} icon={Home} iconBg="#faf5ff" iconColor="#9333ea" />
+        <StatCard label="Sold" value={soldUnits} icon={CheckCircle} iconBg="#f0fdf4" iconColor="#059669" />
+        <StatCard label="Available" value={availableUnits} icon={TrendingUp} iconBg="#fffbeb" iconColor="#d97706" />
       </div>
 
-      {/* Projects */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">My Projects</h2>
+      <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0 }}>My Projects</h2>
         </div>
-        {isLoading ? (
-          <div className="p-6 space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />
+        {isLoading && (
+          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {['p1', 'p2', 'p3'].map((k) => (
+              <div key={k} style={{ height: 64, background: '#f1f5f9', borderRadius: 10 }} className="animate-pulse" />
             ))}
           </div>
-        ) : projects.length === 0 ? (
+        )}
+        {!isLoading && projects.length === 0 && (
           <EmptyState icon={Building2} title="No projects assigned" description="Contact admin to get projects assigned to you" />
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {projects.map((project) => (
-              <div
-                key={project.id}
-                className="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-                onClick={() => router.push(`/owner/projects/${project.id}`)}
-              >
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <p className="font-medium text-slate-900">{project.name}</p>
-                    <Badge status={project.status} />
+        )}
+        {!isLoading && projects.length > 0 && (
+          <div>
+            {projects.map((project, i) => {
+              const price = priceLabel(project)
+              return (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => router.push(`/owner/projects/${project.id}`)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '16px 20px',
+                    borderBottom: i < projects.length - 1 ? '1px solid #f1f5f9' : 'none',
+                    cursor: 'pointer',
+                    background: 'white',
+                    border: 'none',
+                    width: '100%',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', margin: 0 }}>{project.name}</p>
+                      <Badge status={project.status} />
+                    </div>
+                    <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>{project.location}</p>
+                    {price && <p style={{ fontSize: 11, color: '#64748b', margin: '2px 0 0' }}>{price}</p>}
                   </div>
-                  <p className="text-xs text-slate-400">{project.location}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm">
-                    <span className="font-semibold text-emerald-600">{project.availableUnits}</span>
-                    <span className="text-slate-400"> / {project.totalUnits}</span>
-                  </p>
-                  <p className="text-xs text-slate-400">available units</p>
-                </div>
-              </div>
-            ))}
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: 14, margin: 0 }}>
+                      <span style={{ fontWeight: 700, color: '#059669' }}>{project.availableUnits}</span>
+                      <span style={{ color: '#94a3b8' }}> / {project.totalUnits}</span>
+                    </p>
+                    <p style={{ fontSize: 11, color: '#94a3b8', margin: '2px 0 0' }}>available units</p>
+                  </div>
+                </button>
+              )
+            })}
           </div>
         )}
       </div>

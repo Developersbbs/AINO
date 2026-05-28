@@ -12,7 +12,7 @@ import { Table, Thead, Th, Tbody, Tr, Td } from '@/components/ui/Table'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { toast } from 'sonner'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { Plus, Upload, Image, Building2, FileText } from 'lucide-react'
+import { Plus, Upload, Building2, FileText } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -57,6 +57,16 @@ type UnitData = z.infer<typeof unitSchema>
 
 type TabType = 'overview' | 'units' | 'documents'
 
+function tabStyle(active: boolean) {
+  return {
+    padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+    border: 'none', cursor: 'pointer', transition: 'background 0.15s',
+    background: active ? 'white' : 'transparent',
+    color: active ? '#1e3c6e' : '#64748b',
+    boxShadow: active ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+  } as const
+}
+
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const qc = useQueryClient()
@@ -73,7 +83,10 @@ export default function ProjectDetailPage() {
 
   const { data: units = [] } = useQuery<Unit[]>({
     queryKey: ['project-units', id],
-    queryFn: () => api.get(`/projects/${id}/units`).then((r) => r.data?.units ?? r.data),
+    queryFn: () => api.get(`/projects/${id}/units`).then((r) => {
+      const d = r.data
+      return Array.isArray(d) ? d : (d?.units ?? [])
+    }),
   })
 
   const addUnitMutation = useMutation({
@@ -91,14 +104,9 @@ export default function ProjectDetailPage() {
     mutationFn: (file: File) => {
       const fd = new FormData()
       fd.append('layout', file)
-      return api.post(`/projects/${id}/layout`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      return api.post(`/projects/${id}/layout`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['project', id] })
-      toast.success('Layout uploaded')
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['project', id] }); toast.success('Layout uploaded') },
     onError: () => toast.error('Failed to upload layout'),
   })
 
@@ -106,14 +114,9 @@ export default function ProjectDetailPage() {
     mutationFn: (file: File) => {
       const fd = new FormData()
       fd.append('document', file)
-      return api.post(`/projects/${id}/documents`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      return api.post(`/projects/${id}/documents`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['project', id] })
-      toast.success('Document uploaded')
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['project', id] }); toast.success('Document uploaded') },
     onError: () => toast.error('Failed to upload document'),
   })
 
@@ -121,9 +124,7 @@ export default function ProjectDetailPage() {
     mutationFn: (file: File) => {
       const fd = new FormData()
       fd.append('file', file)
-      return api.post('/units/bulk', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      return api.post('/units/bulk', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
     },
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['project-units', id] })
@@ -132,89 +133,56 @@ export default function ProjectDetailPage() {
     onError: () => toast.error('Failed to import CSV'),
   })
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<UnitData>({ resolver: zodResolver(unitSchema) })
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<UnitData>({ resolver: zodResolver(unitSchema) })
 
   if (isLoading) {
-    return <div className="bg-white border border-slate-200 rounded-xl h-96 animate-pulse" />
+    return <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, height: 384 }} className="animate-pulse" />
   }
 
   if (!project) return null
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm px-6 py-5">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <style>{`.tbl-row:hover { background: #f8fafc; } .tbl-row:last-child { border-bottom: none; }`}</style>
+
+      {/* Header Card */}
+      <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: '20px 24px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-xl font-bold text-slate-900">{project.name}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <h1 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', margin: 0 }}>{project.name}</h1>
               <Badge status={project.status} />
             </div>
-            <p className="text-slate-500 text-sm">{project.location}</p>
-            {project.owner && (
-              <p className="text-xs text-slate-400 mt-1">Owner: {project.owner.name}</p>
-            )}
+            <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>{project.location}</p>
+            {project.owner && <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>Owner: {project.owner.name}</p>}
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => layoutInputRef.current?.click()}
-              loading={uploadLayoutMutation.isPending}
-            >
-              <Image size={14} /> Upload Layout
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button size="sm" variant="outline" onClick={() => layoutInputRef.current?.click()} loading={uploadLayoutMutation.isPending}>
+              <Building2 size={14} /> Upload Layout
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => docsInputRef.current?.click()}
-              loading={uploadDocsMutation.isPending}
-            >
+            <Button size="sm" variant="outline" onClick={() => docsInputRef.current?.click()} loading={uploadDocsMutation.isPending}>
               <Upload size={14} /> Upload Doc
             </Button>
-            <input
-              ref={layoutInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (f) uploadLayoutMutation.mutate(f)
-                e.target.value = ''
-              }}
-            />
-            <input
-              ref={docsInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (f) uploadDocsMutation.mutate(f)
-                e.target.value = ''
-              }}
-            />
+            <input ref={layoutInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) { uploadLayoutMutation.mutate(f) } e.target.value = '' }} />
+            <input ref={docsInputRef} type="file" accept=".pdf,.doc,.docx" style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) { uploadDocsMutation.mutate(f) } e.target.value = '' }} />
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-100">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
           <div>
-            <p className="text-xs text-slate-400">Total Units</p>
-            <p className="text-lg font-bold text-slate-900">{project.totalUnits}</p>
+            <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Units</p>
+            <p style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: 0 }}>{project.totalUnits}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-400">Available</p>
-            <p className="text-lg font-bold text-emerald-600">{project.availableUnits}</p>
+            <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Available</p>
+            <p style={{ fontSize: 20, fontWeight: 700, color: '#059669', margin: 0 }}>{project.availableUnits}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-400">Price Range</p>
-            <p className="text-sm font-semibold text-slate-900">
+            <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price Range</p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: 0 }}>
               {project.priceMin && project.priceMax
                 ? `${formatCurrency(project.priceMin)} – ${formatCurrency(project.priceMax)}`
                 : '—'}
@@ -224,37 +192,23 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
+      <div style={{ display: 'flex', gap: 2, background: '#f1f5f9', borderRadius: 10, padding: 4, width: 'fit-content' }}>
         {(['overview', 'units', 'documents'] as TabType[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
-              tab === t
-                ? 'bg-white text-[#1e3c6e] shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {t}
+          <button key={t} onClick={() => setTab(t)} style={tabStyle(tab === t)}>
+            {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
 
       {/* Overview Tab */}
       {tab === 'overview' && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-          <h2 className="font-semibold text-slate-900 mb-3">Description</h2>
-          <p className="text-slate-600 text-sm leading-relaxed">
-            {project.description ?? 'No description provided.'}
-          </p>
+        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: 24 }}>
+          <p style={{ fontWeight: 600, color: '#0f172a', margin: '0 0 10px' }}>Description</p>
+          <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, margin: 0 }}>{project.description ?? 'No description provided.'}</p>
           {project.layoutUrl && (
-            <div className="mt-4">
-              <h2 className="font-semibold text-slate-900 mb-3">Layout</h2>
-              <img
-                src={project.layoutUrl}
-                alt="Layout"
-                className="rounded-xl border border-slate-200 max-w-full max-h-96 object-contain"
-              />
+            <div style={{ marginTop: 20 }}>
+              <p style={{ fontWeight: 600, color: '#0f172a', margin: '0 0 10px' }}>Layout</p>
+              <img src={project.layoutUrl} alt="Layout" style={{ borderRadius: 10, border: '1px solid #e2e8f0', maxWidth: '100%', maxHeight: 384, objectFit: 'contain' }} />
             </div>
           )}
         </div>
@@ -262,30 +216,14 @@ export default function ProjectDetailPage() {
 
       {/* Units Tab */}
       {tab === 'units' && (
-        <div className="space-y-3">
-          <div className="flex gap-2 justify-end">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => csvInputRef.current?.click()}
-              loading={bulkCsvMutation.isPending}
-            >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Button size="sm" variant="outline" onClick={() => csvInputRef.current?.click()} loading={bulkCsvMutation.isPending}>
               <Upload size={14} /> Bulk CSV
             </Button>
-            <Button size="sm" onClick={() => setAddUnitOpen(true)}>
-              <Plus size={14} /> Add Unit
-            </Button>
-            <input
-              ref={csvInputRef}
-              type="file"
-              accept=".csv"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (f) bulkCsvMutation.mutate(f)
-                e.target.value = ''
-              }}
-            />
+            <Button size="sm" onClick={() => setAddUnitOpen(true)}><Plus size={14} /> Add Unit</Button>
+            <input ref={csvInputRef} type="file" accept=".csv" style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) { bulkCsvMutation.mutate(f) } e.target.value = '' }} />
           </div>
           {units.length === 0 ? (
             <EmptyState icon={Building2} title="No units yet" description="Add units or bulk import via CSV" />
@@ -293,24 +231,18 @@ export default function ProjectDetailPage() {
             <Table>
               <Thead>
                 <tr>
-                  <Th>Unit No.</Th>
-                  <Th>Type</Th>
-                  <Th>Floor</Th>
-                  <Th>Facing</Th>
-                  <Th>Size (sqft)</Th>
-                  <Th>Price</Th>
-                  <Th>Status</Th>
+                  <Th>Unit No.</Th><Th>Type</Th><Th>Floor</Th><Th>Facing</Th><Th>Size (sqft)</Th><Th>Price</Th><Th>Status</Th>
                 </tr>
               </Thead>
               <Tbody>
                 {units.map((unit) => (
                   <Tr key={unit.id}>
-                    <Td><span className="font-medium">{unit.unitNumber}</span></Td>
+                    <Td><span style={{ fontWeight: 600, color: '#0f172a' }}>{unit.unitNumber}</span></Td>
                     <Td>{unit.type}</Td>
                     <Td>{unit.floor}</Td>
                     <Td>{unit.facing}</Td>
                     <Td>{unit.size.toLocaleString()}</Td>
-                    <Td>{formatCurrency(unit.price)}</Td>
+                    <Td><span style={{ fontWeight: 600, color: '#059669' }}>{formatCurrency(unit.price)}</span></Td>
                     <Td><Badge status={unit.status} /></Td>
                   </Tr>
                 ))}
@@ -322,26 +254,22 @@ export default function ProjectDetailPage() {
 
       {/* Documents Tab */}
       {tab === 'documents' && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-          {(!project.documents || project.documents.length === 0) ? (
+        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: 24 }}>
+          {(!project.documents || project.documents.length === 0) && (
             <EmptyState icon={FileText} title="No documents" description="Upload project documents" />
-          ) : (
-            <div className="space-y-2">
+          )}
+          {project.documents && project.documents.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {project.documents.map((doc) => (
-                <div key={doc.id} className="flex items-center justify-between p-3 border border-slate-100 rounded-lg hover:bg-slate-50">
-                  <div className="flex items-center gap-3">
-                    <FileText size={16} className="text-slate-400" />
+                <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', border: '1px solid #f1f5f9', borderRadius: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <FileText size={16} style={{ color: '#94a3b8', flexShrink: 0 }} />
                     <div>
-                      <p className="text-sm font-medium text-slate-900">{doc.name}</p>
-                      <p className="text-xs text-slate-400">{formatDate(doc.createdAt)}</p>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', margin: 0 }}>{doc.name}</p>
+                      <p style={{ fontSize: 11, color: '#94a3b8', margin: '2px 0 0' }}>{formatDate(doc.createdAt)}</p>
                     </div>
                   </div>
-                  <a
-                    href={doc.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-[#1e3c6e] hover:underline font-medium"
-                  >
+                  <a href={doc.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#1e3c6e', fontWeight: 600, textDecoration: 'none' }}>
                     Download
                   </a>
                 </div>
@@ -354,7 +282,7 @@ export default function ProjectDetailPage() {
       {/* Add Unit Modal */}
       <Modal open={addUnitOpen} onClose={() => setAddUnitOpen(false)} title="Add Unit" size="md">
         <form onSubmit={handleSubmit((d) => addUnitMutation.mutate(d))} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Input label="Unit Number" error={errors.unitNumber?.message} {...register('unitNumber')} />
             <Input label="Type (e.g. 2BHK)" error={errors.type?.message} {...register('type')} />
             <Input label="Floor" type="number" error={errors.floor?.message} {...register('floor')} />
@@ -362,7 +290,7 @@ export default function ProjectDetailPage() {
             <Input label="Size (sqft)" type="number" error={errors.size?.message} {...register('size')} />
             <Input label="Price (₹)" type="number" error={errors.price?.message} {...register('price')} />
           </div>
-          <div className="flex gap-3 justify-end">
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8 }}>
             <Button variant="ghost" type="button" onClick={() => setAddUnitOpen(false)}>Cancel</Button>
             <Button type="submit" loading={addUnitMutation.isPending}>Add Unit</Button>
           </div>

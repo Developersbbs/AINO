@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Menu, Bell, ChevronDown, LogOut, User, Settings } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
+import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 
@@ -18,6 +20,21 @@ export function TopBar({ title, onMenuClick }: Readonly<TopBarProps>) {
   const { user, logout } = useAuthStore()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const router = useRouter()
+
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: ['notifications-unread'],
+    queryFn: async () => {
+      const r = await api.get('/notifications/unread-count')
+      return r.data as { count: number }
+    },
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  })
+  const unreadCount = unreadData?.count ?? 0
+
+  let notifHref = '/notifications'
+  if (user?.role === 'agent') notifHref = '/agent/notifications'
+  else if (user?.role === 'owner') notifHref = '/owner/notifications'
 
   async function handleLogout() {
     try {
@@ -44,13 +61,18 @@ export function TopBar({ title, onMenuClick }: Readonly<TopBarProps>) {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         {/* Notifications */}
-        <button
-          type="button"
-          style={{ position: 'relative', padding: 8, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748b', display: 'flex' }}
+        <Link
+          href={notifHref}
+          style={{ position: 'relative', padding: 8, borderRadius: 8, color: '#64748b', display: 'flex', textDecoration: 'none' }}
+          className="hover:bg-slate-100"
         >
           <Bell size={18} />
-          <span style={{ position: 'absolute', top: 8, right: 8, width: 7, height: 7, background: '#ef4444', borderRadius: '50%', border: '1.5px solid white' }} />
-        </button>
+          {unreadCount > 0 && (
+            <span style={{ position: 'absolute', top: 5, right: 5, minWidth: 16, height: 16, background: '#dc2626', color: 'white', borderRadius: 8, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', lineHeight: 1, border: '1.5px solid white' }}>
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </Link>
 
         {/* User dropdown */}
         <div style={{ position: 'relative' }}>

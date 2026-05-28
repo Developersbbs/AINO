@@ -23,7 +23,6 @@ interface Agent {
   email?: string
   status: string
   totalLeads: number
-  totalCommissions: number
   createdAt: string
 }
 
@@ -44,7 +43,7 @@ export default function AgentsPage() {
     queryKey: ['admin-agents'],
     queryFn: async () => {
       const r = await api.get('/admin/agents')
-      const raw: Record<string, unknown>[] = r.data?.data ?? r.data ?? []
+      const raw: Record<string, unknown>[] = Array.isArray(r.data) ? r.data : []
       return raw.map((a) => ({
         id: a.id as string,
         name: a.name as string,
@@ -52,7 +51,6 @@ export default function AgentsPage() {
         email: a.email as string | undefined,
         status: a.is_approved ? 'active' : 'pending',
         totalLeads: (a.totalLeads as number) ?? 0,
-        totalCommissions: (a.totalCommissions as number) ?? 0,
         createdAt: a.created_at as string,
       }))
     },
@@ -79,47 +77,72 @@ export default function AgentsPage() {
     onError: () => toast.error('Action failed'),
   })
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<AgentData>({ resolver: zodResolver(agentSchema) })
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<AgentData>({
+    resolver: zodResolver(agentSchema),
+  })
 
   const filtered = agents.filter(
     (a) =>
-      a.name.toLowerCase().includes(search.toLowerCase()) ||
-      a.phone.includes(search)
+      a.name?.toLowerCase().includes(search.toLowerCase()) ||
+      a.phone?.includes(search)
   )
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <Input
-          placeholder="Search agents..."
-          leftAddon={<Search size={14} />}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
-        />
-        <Button onClick={() => setAddOpen(true)}>
-          <Plus size={16} /> Add Agent
-        </Button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <style>{`.tbl-row:hover { background: #f8fafc; } .tbl-row:last-child { border-bottom: none; }`}</style>
+
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: 'auto' }}>
+          <div style={{ width: 38, height: 38, background: '#f5f3ff', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Users size={18} style={{ color: '#7c3aed' }} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: 0 }}>Agents</h2>
+            {!isLoading && <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>{agents.length} total</p>}
+          </div>
+        </div>
+        <div style={{ width: 220 }}>
+          <Input
+            placeholder="Search agents…"
+            leftAddon={<Search size={13} />}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '10px 20px', borderRadius: 10, flexShrink: 0,
+            background: '#1e3c6e', color: 'white',
+            fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer',
+          }}
+        >
+          <Plus size={15} /> Add Agent
+        </button>
       </div>
 
-      {isLoading ? (
-        <div className="bg-white border border-slate-200 rounded-xl h-64 animate-pulse" />
-      ) : filtered.length === 0 ? (
+      {/* Content */}
+      {isLoading && (
+        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="animate-pulse" style={{ width: '60%', height: 12, background: '#f1f5f9', borderRadius: 6 }} />
+        </div>
+      )}
+      {!isLoading && filtered.length === 0 && (
         <EmptyState
           icon={Users}
           title="No agents found"
-          action={<Button onClick={() => setAddOpen(true)}><Plus size={16} /> Add Agent</Button>}
+          description={search ? 'No agents match your search' : 'Add your first agent to get started'}
+          action={<Button onClick={() => setAddOpen(true)}><Plus size={15} /> Add Agent</Button>}
         />
-      ) : (
+      )}
+      {!isLoading && filtered.length > 0 && (
         <Table>
           <Thead>
             <tr>
-              <Th>Name</Th>
+              <Th>Agent</Th>
               <Th>Phone</Th>
               <Th>Email</Th>
               <Th>Status</Th>
@@ -131,49 +154,44 @@ export default function AgentsPage() {
           <Tbody>
             {filtered.map((agent) => (
               <Tr key={agent.id}>
-                <Td><span className="font-medium text-slate-900">{agent.name}</span></Td>
+                <Td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#7c3aed', flexShrink: 0 }}>
+                      {agent.name?.charAt(0)?.toUpperCase()}
+                    </div>
+                    <span style={{ fontWeight: 600, color: '#0f172a' }}>{agent.name}</span>
+                  </div>
+                </Td>
                 <Td>{agent.phone}</Td>
                 <Td>{agent.email ?? '—'}</Td>
                 <Td><Badge status={agent.status} /></Td>
                 <Td>{agent.totalLeads ?? 0}</Td>
                 <Td>{formatDate(agent.createdAt)}</Td>
                 <Td>
-                  <div className="flex items-center gap-1.5">
+                  <div style={{ display: 'flex', gap: 6 }}>
                     {agent.status === 'pending' && (
                       <>
-                        <Button
-                          size="sm"
-                          variant="success"
-                          onClick={() => actionMutation.mutate({ id: agent.id, action: 'approve' })}
-                        >
+                        <button type="button" onClick={() => actionMutation.mutate({ id: agent.id, action: 'approve' })}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: '#f0fdf4', color: '#15803d' }}>
                           <CheckCircle size={13} /> Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => actionMutation.mutate({ id: agent.id, action: 'reject' })}
-                        >
+                        </button>
+                        <button type="button" onClick={() => actionMutation.mutate({ id: agent.id, action: 'reject' })}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: '#fef2f2', color: '#dc2626' }}>
                           <XCircle size={13} /> Reject
-                        </Button>
+                        </button>
                       </>
                     )}
                     {(agent.status === 'approved' || agent.status === 'active') && (
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => actionMutation.mutate({ id: agent.id, action: 'deactivate' })}
-                      >
+                      <button type="button" onClick={() => actionMutation.mutate({ id: agent.id, action: 'deactivate' })}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: '#fef2f2', color: '#dc2626' }}>
                         <Ban size={13} /> Deactivate
-                      </Button>
+                      </button>
                     )}
                     {agent.status === 'deactivated' && (
-                      <Button
-                        size="sm"
-                        variant="success"
-                        onClick={() => actionMutation.mutate({ id: agent.id, action: 'approve' })}
-                      >
+                      <button type="button" onClick={() => actionMutation.mutate({ id: agent.id, action: 'approve' })}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: '#f0fdf4', color: '#15803d' }}>
                         <CheckCircle size={13} /> Reactivate
-                      </Button>
+                      </button>
                     )}
                   </div>
                 </Td>
@@ -186,16 +204,9 @@ export default function AgentsPage() {
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add Agent">
         <form onSubmit={handleSubmit((d) => addMutation.mutate(d))} className="space-y-4">
           <Input label="Full Name" error={errors.name?.message} {...register('name')} />
-          <Input
-            label="Phone"
-            leftAddon="+91"
-            maxLength={10}
-            inputMode="numeric"
-            error={errors.phone?.message}
-            {...register('phone')}
-          />
+          <Input label="Phone" leftAddon="+91" maxLength={10} inputMode="numeric" error={errors.phone?.message} {...register('phone')} />
           <Input label="Email (optional)" type="email" error={errors.email?.message} {...register('email')} />
-          <div className="flex gap-3 justify-end">
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <Button variant="ghost" type="button" onClick={() => setAddOpen(false)}>Cancel</Button>
             <Button type="submit" loading={addMutation.isPending}>Add Agent</Button>
           </div>

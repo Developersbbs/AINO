@@ -41,7 +41,19 @@ export default function OwnersPage() {
 
   const { data: owners = [], isLoading } = useQuery<Owner[]>({
     queryKey: ['admin-owners'],
-    queryFn: () => api.get('/admin/owners').then((r) => r.data?.owners ?? r.data),
+    queryFn: async () => {
+      const r = await api.get('/admin/owners')
+      const raw: Record<string, unknown>[] = Array.isArray(r.data) ? r.data : []
+      return raw.map((o) => ({
+        id: o.id as string,
+        name: o.name as string,
+        phone: o.phone as string,
+        email: o.email as string | undefined,
+        status: o.is_approved ? 'active' : 'pending',
+        projectCount: (o.projectCount as number) ?? 0,
+        createdAt: o.created_at as string,
+      }))
+    },
   })
 
   const addMutation = useMutation({
@@ -65,51 +77,74 @@ export default function OwnersPage() {
     onError: () => toast.error('Action failed'),
   })
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<OwnerData>({ resolver: zodResolver(ownerSchema) })
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<OwnerData>({
+    resolver: zodResolver(ownerSchema),
+  })
 
   const filtered = owners.filter(
     (o) =>
-      o.name.toLowerCase().includes(search.toLowerCase()) ||
-      o.phone.includes(search)
+      o.name?.toLowerCase().includes(search.toLowerCase()) ||
+      o.phone?.includes(search)
   )
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <Input
-          placeholder="Search owners..."
-          leftAddon={<Search size={14} />}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
-        />
-        <Button onClick={() => setAddOpen(true)}>
-          <Plus size={16} /> Add Owner
-        </Button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <style>{`.tbl-row:hover { background: #f8fafc; } .tbl-row:last-child { border-bottom: none; }`}</style>
+
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: 'auto' }}>
+          <div style={{ width: 38, height: 38, background: '#eef2ff', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <UserCheck size={18} style={{ color: '#4f46e5' }} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: 0 }}>Owners</h2>
+            {!isLoading && <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>{owners.length} total</p>}
+          </div>
+        </div>
+        <div style={{ width: 220 }}>
+          <Input
+            placeholder="Search owners…"
+            leftAddon={<Search size={13} />}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '10px 20px', borderRadius: 10, flexShrink: 0,
+            background: '#1e3c6e', color: 'white',
+            fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer',
+          }}
+        >
+          <Plus size={15} /> Add Owner
+        </button>
       </div>
 
-      {isLoading ? (
-        <div className="bg-white border border-slate-200 rounded-xl h-64 animate-pulse" />
-      ) : filtered.length === 0 ? (
+      {/* Content */}
+      {isLoading && (
+        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, height: 240 }} className="animate-pulse" />
+      )}
+      {!isLoading && filtered.length === 0 && (
         <EmptyState
           icon={UserCheck}
           title="No owners found"
-          action={<Button onClick={() => setAddOpen(true)}><Plus size={16} /> Add Owner</Button>}
+          description={search ? 'No owners match your search' : 'Add your first owner to get started'}
+          action={<Button onClick={() => setAddOpen(true)}><Plus size={15} /> Add Owner</Button>}
         />
-      ) : (
+      )}
+      {!isLoading && filtered.length > 0 && (
         <Table>
           <Thead>
             <tr>
-              <Th>Name</Th>
+              <Th>Owner</Th>
               <Th>Phone</Th>
               <Th>Email</Th>
-              <Th>Projects</Th>
               <Th>Status</Th>
+              <Th>Projects</Th>
               <Th>Joined</Th>
               <Th>Actions</Th>
             </tr>
@@ -117,40 +152,38 @@ export default function OwnersPage() {
           <Tbody>
             {filtered.map((owner) => (
               <Tr key={owner.id}>
-                <Td><span className="font-medium text-slate-900">{owner.name}</span></Td>
+                <Td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#4f46e5', flexShrink: 0 }}>
+                      {owner.name?.charAt(0)?.toUpperCase()}
+                    </div>
+                    <span style={{ fontWeight: 600, color: '#0f172a' }}>{owner.name}</span>
+                  </div>
+                </Td>
                 <Td>{owner.phone}</Td>
                 <Td>{owner.email ?? '—'}</Td>
-                <Td>{owner.projectCount ?? 0}</Td>
                 <Td><Badge status={owner.status} /></Td>
+                <Td>{owner.projectCount ?? 0}</Td>
                 <Td>{formatDate(owner.createdAt)}</Td>
                 <Td>
-                  <div className="flex items-center gap-1.5">
+                  <div style={{ display: 'flex', gap: 6 }}>
                     {owner.status === 'pending' && (
-                      <Button
-                        size="sm"
-                        variant="success"
-                        onClick={() => actionMutation.mutate({ id: owner.id, action: 'approve' })}
-                      >
+                      <button type="button" onClick={() => actionMutation.mutate({ id: owner.id, action: 'approve' })}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: '#f0fdf4', color: '#15803d' }}>
                         <CheckCircle size={13} /> Approve
-                      </Button>
+                      </button>
                     )}
                     {(owner.status === 'approved' || owner.status === 'active') && (
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => actionMutation.mutate({ id: owner.id, action: 'deactivate' })}
-                      >
+                      <button type="button" onClick={() => actionMutation.mutate({ id: owner.id, action: 'deactivate' })}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: '#fef2f2', color: '#dc2626' }}>
                         <Ban size={13} /> Deactivate
-                      </Button>
+                      </button>
                     )}
                     {owner.status === 'deactivated' && (
-                      <Button
-                        size="sm"
-                        variant="success"
-                        onClick={() => actionMutation.mutate({ id: owner.id, action: 'approve' })}
-                      >
+                      <button type="button" onClick={() => actionMutation.mutate({ id: owner.id, action: 'approve' })}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: '#f0fdf4', color: '#15803d' }}>
                         <CheckCircle size={13} /> Reactivate
-                      </Button>
+                      </button>
                     )}
                   </div>
                 </Td>
@@ -163,16 +196,9 @@ export default function OwnersPage() {
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add Owner">
         <form onSubmit={handleSubmit((d) => addMutation.mutate(d))} className="space-y-4">
           <Input label="Full Name" error={errors.name?.message} {...register('name')} />
-          <Input
-            label="Phone"
-            leftAddon="+91"
-            maxLength={10}
-            inputMode="numeric"
-            error={errors.phone?.message}
-            {...register('phone')}
-          />
+          <Input label="Phone" leftAddon="+91" maxLength={10} inputMode="numeric" error={errors.phone?.message} {...register('phone')} />
           <Input label="Email (optional)" type="email" error={errors.email?.message} {...register('email')} />
-          <div className="flex gap-3 justify-end">
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <Button variant="ghost" type="button" onClick={() => setAddOpen(false)}>Cancel</Button>
             <Button type="submit" loading={addMutation.isPending}>Add Owner</Button>
           </div>

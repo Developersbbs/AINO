@@ -42,13 +42,16 @@ export default function OwnerProjectDetailPage() {
 
   const { data: units = [], isLoading: unitsLoading } = useQuery<Unit[]>({
     queryKey: ['owner-project-units', id],
-    queryFn: () => api.get(`/projects/${id}/units`).then((r) => r.data?.units ?? r.data),
+    queryFn: () => api.get(`/projects/${id}/units`).then((r) => {
+      const d = r.data
+      return Array.isArray(d) ? d : (d?.units ?? [])
+    }),
   })
 
   const isLoading = projectLoading || unitsLoading
 
   if (isLoading) {
-    return <div className="bg-white border border-slate-200 rounded-xl h-64 animate-pulse" />
+    return <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, height: 256 }} className="animate-pulse" />
   }
 
   if (!project) return null
@@ -58,42 +61,44 @@ export default function OwnerProjectDetailPage() {
   const sold = units.filter((u) => u.status === 'sold')
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <style>{`.tbl-row:hover { background: #f8fafc; } .tbl-row:last-child { border-bottom: none; }`}</style>
+
       {/* Header */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-        <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-xl font-bold text-slate-900">{project.name}</h1>
+      <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: '20px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+          <h1 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', margin: 0 }}>{project.name}</h1>
           <Badge status={project.status} />
         </div>
-        <p className="text-slate-500 text-sm">{project.location}</p>
+        <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>{project.location}</p>
         {project.description && (
-          <p className="text-slate-600 text-sm mt-2">{project.description}</p>
+          <p style={{ fontSize: 13, color: '#374151', margin: '8px 0 0' }}>{project.description}</p>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-100">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, paddingTop: 16, marginTop: 16, borderTop: '1px solid #f1f5f9' }}>
           <div>
-            <p className="text-xs text-slate-400">Total</p>
-            <p className="text-xl font-bold text-slate-900">{project.totalUnits}</p>
+            <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</p>
+            <p style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', margin: 0 }}>{project.totalUnits}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-400">Available</p>
-            <p className="text-xl font-bold text-emerald-600">{available.length}</p>
+            <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Available</p>
+            <p style={{ fontSize: 22, fontWeight: 700, color: '#059669', margin: 0 }}>{available.length}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-400">Booked</p>
-            <p className="text-xl font-bold text-amber-500">{booked.length}</p>
+            <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Booked</p>
+            <p style={{ fontSize: 22, fontWeight: 700, color: '#d97706', margin: 0 }}>{booked.length}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-400">Sold</p>
-            <p className="text-xl font-bold text-red-500">{sold.length}</p>
+            <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sold</p>
+            <p style={{ fontSize: 22, fontWeight: 700, color: '#ef4444', margin: 0 }}>{sold.length}</p>
           </div>
         </div>
       </div>
 
-      {/* Unit Grid */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">Units</h2>
+      {/* Units */}
+      <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0 }}>Units</h2>
         </div>
         {units.length === 0 ? (
           <EmptyState icon={Building2} title="No units found" />
@@ -101,24 +106,18 @@ export default function OwnerProjectDetailPage() {
           <Table>
             <Thead>
               <tr>
-                <Th>Unit</Th>
-                <Th>Type</Th>
-                <Th>Floor</Th>
-                <Th>Facing</Th>
-                <Th>Size</Th>
-                <Th>Price</Th>
-                <Th>Status</Th>
+                <Th>Unit</Th><Th>Type</Th><Th>Floor</Th><Th>Facing</Th><Th>Size</Th><Th>Price</Th><Th>Status</Th>
               </tr>
             </Thead>
             <Tbody>
               {units.map((unit) => (
                 <Tr key={unit.id}>
-                  <Td><span className="font-medium">{unit.unitNumber}</span></Td>
+                  <Td><span style={{ fontWeight: 600, color: '#0f172a' }}>{unit.unitNumber}</span></Td>
                   <Td>{unit.type}</Td>
                   <Td>{unit.floor}</Td>
                   <Td>{unit.facing}</Td>
                   <Td>{unit.size.toLocaleString()} sqft</Td>
-                  <Td>{formatCurrency(unit.price)}</Td>
+                  <Td><span style={{ fontWeight: 600, color: '#059669' }}>{formatCurrency(unit.price)}</span></Td>
                   <Td><Badge status={unit.status} /></Td>
                 </Tr>
               ))}

@@ -1,65 +1,46 @@
-import { cn } from '@/lib/utils'
-
-interface TableProps {
-  children: React.ReactNode
-  className?: string
-}
-
-export function Table({ children, className }: TableProps) {
+export function Table({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className={cn('w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm', className)}>
-      <table className="w-full text-sm text-left">{children}</table>
+    <div style={{ width: '100%', overflowX: 'auto', borderRadius: 14, border: '1px solid #e2e8f0', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
+      <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse', minWidth: 600 }}>{children}</table>
     </div>
   )
 }
 
-export function Thead({ children }: { children: React.ReactNode }) {
+export function Thead({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <thead className="bg-slate-50 border-b border-slate-200">
+    <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
       {children}
     </thead>
   )
 }
 
-export function Th({ children, className }: { children: React.ReactNode; className?: string }) {
+export function Th({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <th
-      className={cn(
-        'px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap',
-        className
-      )}
-    >
+    <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', textAlign: 'left' }}>
       {children}
     </th>
   )
 }
 
-export function Tbody({ children }: { children: React.ReactNode }) {
-  return <tbody className="divide-y divide-slate-100">{children}</tbody>
+export function Tbody({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <tbody>{children}</tbody>
 }
 
-export function Tr({
-  children,
-  className,
-  onClick,
-}: {
-  children: React.ReactNode
-  className?: string
-  onClick?: () => void
-}) {
+export function Tr({ children, onClick }: Readonly<{ children: React.ReactNode; onClick?: () => void }>) {
   return (
     <tr
-      className={cn('hover:bg-slate-50 transition-colors', onClick && 'cursor-pointer', className)}
       onClick={onClick}
+      style={{ borderBottom: '1px solid #f1f5f9', cursor: onClick ? 'pointer' : 'default', transition: 'background 0.12s' }}
+      className="tbl-row"
     >
       {children}
     </tr>
   )
 }
 
-export function Td({ children, className }: { children: React.ReactNode; className?: string }) {
+export function Td({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <td className={cn('px-4 py-3 text-slate-700 whitespace-nowrap', className)}>
+    <td style={{ padding: '12px 16px', color: '#374151', whiteSpace: 'nowrap' }}>
       {children}
     </td>
   )

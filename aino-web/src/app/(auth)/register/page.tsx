@@ -114,8 +114,9 @@ export default function RegisterPage() {
       >
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 44, height: 44, background: 'white', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ color: '#1e3c6e', fontWeight: 900, fontSize: 20 }}>A</span>
+          <div style={{ width: 44, height: 44, background: 'white', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/aino-logo.png" alt="AINO" style={{ width: 38, height: 38, objectFit: 'contain' }} />
           </div>
           <div>
             <div style={{ color: 'white', fontWeight: 800, fontSize: 20, letterSpacing: -0.5 }}>AINO</div>
@@ -159,8 +160,9 @@ export default function RegisterPage() {
         <div style={{ width: '100%', maxWidth: 440 }}>
           {/* Mobile logo */}
           <div className="lg:hidden" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
-            <div style={{ width: 40, height: 40, background: '#1e3c6e', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ color: 'white', fontWeight: 900, fontSize: 18 }}>A</span>
+            <div style={{ width: 40, height: 40, background: 'white', borderRadius: 10, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/aino-logo.png" alt="AINO" style={{ width: 34, height: 34, objectFit: 'contain' }} />
             </div>
             <span style={{ color: '#1e3c6e', fontWeight: 800, fontSize: 18 }}>AINO</span>
           </div>

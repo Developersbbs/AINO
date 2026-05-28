@@ -1,4 +1,3 @@
-import { cn } from '@/lib/utils'
 import { LucideIcon } from 'lucide-react'
 
 interface StatCardProps {
@@ -9,43 +8,31 @@ interface StatCardProps {
   iconBg?: string
   change?: string
   changeType?: 'up' | 'down' | 'neutral'
-  className?: string
 }
 
 export function StatCard({
   label,
   value,
   icon: Icon,
-  iconColor = 'text-[#1e3c6e]',
-  iconBg = 'bg-[#1e3c6e]/10',
+  iconColor = '#1e3c6e',
+  iconBg = 'rgba(30,60,110,0.1)',
   change,
   changeType = 'neutral',
-  className,
-}: StatCardProps) {
+}: Readonly<StatCardProps>) {
+  let changeColor = '#94a3b8'
+  if (changeType === 'up') changeColor = '#059669'
+  else if (changeType === 'down') changeColor = '#ef4444'
+
   return (
-    <div
-      className={cn(
-        'bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex items-start gap-4',
-        className
-      )}
-    >
-      <div className={cn('p-3 rounded-xl flex-shrink-0', iconBg)}>
-        <Icon size={22} className={iconColor} />
+    <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: '20px', display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+      <div style={{ width: 48, height: 48, borderRadius: 12, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Icon size={22} style={{ color: iconColor }} />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-slate-500 font-medium">{label}</p>
-        <p className="text-2xl font-bold text-slate-900 mt-0.5">{value}</p>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 13, color: '#64748b', fontWeight: 500, margin: 0 }}>{label}</p>
+        <p style={{ fontSize: 24, fontWeight: 700, color: '#0f172a', margin: '2px 0 0', lineHeight: 1.2 }}>{value}</p>
         {change && (
-          <p
-            className={cn(
-              'text-xs mt-1 font-medium',
-              changeType === 'up' && 'text-emerald-600',
-              changeType === 'down' && 'text-red-500',
-              changeType === 'neutral' && 'text-slate-400'
-            )}
-          >
-            {change}
-          </p>
+          <p style={{ fontSize: 12, color: changeColor, fontWeight: 500, marginTop: 4 }}>{change}</p>
         )}
       </div>
     </div>

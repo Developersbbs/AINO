@@ -1,4 +1,3 @@
-import { cn } from '@/lib/utils'
 import { InputHTMLAttributes, forwardRef } from 'react'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -9,40 +8,58 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, leftAddon, rightAddon, id, ...props }, ref) => {
+  ({ label, error, leftAddon, rightAddon, id, style, ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
 
     return (
-      <div className="flex flex-col gap-1.5">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {label && (
-          <label htmlFor={inputId} className="text-sm font-medium text-slate-700">
+          <label htmlFor={inputId} style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>
             {label}
           </label>
         )}
-        <div className="relative flex items-center">
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           {leftAddon && (
-            <span className="absolute left-3 text-slate-500 flex items-center">{leftAddon}</span>
+            <span style={{ position: 'absolute', left: 12, display: 'flex', alignItems: 'center', color: '#94a3b8', pointerEvents: 'none', zIndex: 1 }}>
+              {leftAddon}
+            </span>
           )}
           <input
             ref={ref}
             id={inputId}
-            className={cn(
-              'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400',
-              'focus:outline-none focus:ring-2 focus:ring-[#1e3c6e]/30 focus:border-[#1e3c6e]',
-              'disabled:bg-slate-50 disabled:cursor-not-allowed',
-              'transition-colors duration-150',
-              leftAddon && 'pl-10',
-              rightAddon && 'pr-10',
-              error && 'border-red-400 focus:ring-red-300 focus:border-red-400',
-              className
-            )}
+            style={{
+              width: '100%',
+              borderRadius: 8,
+              border: '1px solid #e2e8f0',
+              background: 'white',
+              paddingTop: 9,
+              paddingBottom: 9,
+              paddingLeft: leftAddon ? 36 : 12,
+              paddingRight: rightAddon ? 36 : 12,
+              fontSize: 13,
+              color: '#0f172a',
+              outline: 'none',
+              boxSizing: 'border-box',
+              ...(error ? { borderColor: '#f87171' } : {}),
+              ...style,
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = '#1e3c6e'
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(30,60,110,0.12)'
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = error ? '#f87171' : '#e2e8f0'
+              e.currentTarget.style.boxShadow = 'none'
+            }}
             {...props}
           />
           {rightAddon && (
-            <span className="absolute right-3 text-slate-500 flex items-center">{rightAddon}</span>
+            <span style={{ position: 'absolute', right: 12, display: 'flex', alignItems: 'center', color: '#94a3b8', pointerEvents: 'none', zIndex: 1 }}>
+              {rightAddon}
+            </span>
           )}
         </div>
-        {error && <p className="text-xs text-red-500">{error}</p>}
+        {error && <p style={{ fontSize: 12, color: '#ef4444', margin: 0 }}>{error}</p>}
       </div>
     )
   }
