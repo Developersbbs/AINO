@@ -3,6 +3,7 @@ import { UserRole } from '@prisma/client';
 import { AuthRequest } from '../../middlewares/auth';
 import prisma from '../../config/database';
 import * as authService from './authService';
+import { uploadToFirebaseStorage, deleteFromFirebaseStorage } from '../../utils/firebaseStorage';
 
 export const sendOtp = async (req: Request, res: Response) => {
   try {
@@ -127,6 +128,12 @@ export const updateMe = async (req: AuthRequest, res: Response) => {
   }
 };
 
+function getDocFileType(mimetype: string): string {
+  if (mimetype.includes('pdf')) return 'pdf'
+  if (mimetype.startsWith('image/')) return 'image'
+  return 'document'
+}
+
 export const uploadUserDocument = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No file provided' });
@@ -134,11 +141,19 @@ export const uploadUserDocument = async (req: AuthRequest, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { documents: true } });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    const { url, storagePath } = await uploadToFirebaseStorage(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      `user-documents/${userId}`,
+    );
+
     const existing = (user.documents as any[]) ?? [];
     const newDoc = {
       name: (req.body.docType as string | undefined)?.trim() || req.file.originalname,
-      url: `/uploads/user-docs/${req.file.filename}`,
-      type: req.file.mimetype.includes('pdf') ? 'pdf' : 'image',
+      url,
+      storagePath,
+      type: getDocFileType(req.file.mimetype),
       uploadedAt: new Date().toISOString(),
     };
 
@@ -148,7 +163,8 @@ export const uploadUserDocument = async (req: AuthRequest, res: Response) => {
     });
 
     return res.status(200).json({ message: 'Document uploaded', document: newDoc });
-  } catch {
+  } catch (err) {
+    console.error('Document upload error:', err);
     return res.status(500).json({ message: 'Server error' });
   }
 };
@@ -163,6 +179,11 @@ export const deleteUserDocument = async (req: AuthRequest, res: Response) => {
     const existing = (user.documents as any[]) ?? [];
     if (index < 0 || index >= existing.length) {
       return res.status(404).json({ message: 'Document not found' });
+    }
+
+    const docToDelete = existing[index] as { storagePath?: string };
+    if (docToDelete?.storagePath) {
+      await deleteFromFirebaseStorage(docToDelete.storagePath);
     }
 
     await prisma.user.update({
@@ -229,9 +250,14 @@ export const firebaseVerify = async (req: Request, res: Response) => {
         },
       });
 
+      const { accessToken: regAccessToken, refreshToken: regRefreshToken } =
+        await authService.generateTokens(user.id, user.role);
+
       return res.status(201).json({
         message: 'Registration successful! Your account is pending admin approval.',
         requiresApproval: true,
+        accessToken: regAccessToken,
+        refreshToken: regRefreshToken,
         user: {
           id: user.id,
           name: user.name,

@@ -4,11 +4,13 @@ import { useState, useRef, useEffect, KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import { signInWithPhoneNumber, RecaptchaVerifier, ConfirmationResult } from 'firebase/auth'
+import axios from 'axios'
 import api from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from 'sonner'
 import { ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { getPendingDocs, clearPendingDocs } from '@/lib/pendingDocs'
 
 declare global {
   interface Window {
@@ -21,6 +23,60 @@ function clearSession() {
   sessionStorage.removeItem('otp_phone')
   sessionStorage.removeItem('otp_flow')
   sessionStorage.removeItem('register_data')
+}
+
+async function uploadPendingDocs(accessToken: string): Promise<number> {
+  const docs = getPendingDocs()
+  if (docs.length === 0) return 0
+  let uploaded = 0
+  for (const file of docs) {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('docType', file.name)
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/auth/me/documents`, formData, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      uploaded++
+    } catch {
+      // non-fatal — continue with remaining files
+    }
+  }
+  clearPendingDocs()
+  return uploaded
+}
+
+type NavRouter = { push: (href: string) => void }
+type SetAuthFn = (user: AuthUser, accessToken: string, refreshToken: string) => void
+
+async function handleApprovalFlow(data: Record<string, unknown>, router: NavRouter) {
+  if (data.accessToken) {
+    toast.info('Uploading documents…')
+    const uploaded = await uploadPendingDocs(data.accessToken as string)
+    if (uploaded > 0) toast.success(`${uploaded} document${uploaded > 1 ? 's' : ''} uploaded`)
+  }
+  clearSession()
+  toast.success('Registration successful! Waiting for admin approval.')
+  router.push('/pending')
+}
+
+function handleLoginFlow(data: Record<string, unknown>, setAuth: SetAuthFn, router: NavRouter) {
+  const rawUser = data.user as Record<string, unknown>
+  const role = (rawUser.role as string).toLowerCase() as 'admin' | 'agent' | 'owner'
+  const normalizedUser: AuthUser = {
+    id: rawUser.id as string,
+    name: rawUser.name as string,
+    phone: rawUser.phone as string,
+    email: rawUser.email as string | undefined,
+    role,
+    status: rawUser.isApproved ? ('active' as const) : ('pending' as const),
+    avatar: rawUser.avatar as string | undefined,
+  }
+  setAuth(normalizedUser, data.accessToken as string, data.refreshToken as string)
+  clearSession()
+  toast.success(`Welcome, ${normalizedUser.name}!`)
+  const routes: Record<string, string> = { admin: '/dashboard', agent: '/agent/dashboard', owner: '/owner/dashboard' }
+  router.push(rawUser.isApproved ? (routes[role] ?? '/pending') : '/pending')
 }
 
 function buildVerifyBody(firebaseIdToken: string): Record<string, string> {
@@ -92,44 +148,18 @@ export default function OtpPage() {
       const result = await globalThis.window.confirmationResult.confirm(code)
       const firebaseIdToken = await result.user.getIdToken()
       const res = await api.post('/auth/firebase-verify', buildVerifyBody(firebaseIdToken))
-      const data = res.data
+      const data = res.data as Record<string, unknown>
 
-      // Phone not registered — send to register page
       if (data.requiresRegistration) {
         toast.info('Phone not registered. Please create an account.')
         router.push('/register')
         return
       }
-
-      // New user registered but needs admin approval — no tokens yet
       if (data.requiresApproval) {
-        clearSession()
-        toast.success('Registration successful! Waiting for admin approval.')
-        router.push('/pending')
+        await handleApprovalFlow(data, router)
         return
       }
-
-      // Normal login or returning registered user
-      const rawUser = data.user
-      const normalizedUser = {
-        id: rawUser.id,
-        name: rawUser.name,
-        phone: rawUser.phone,
-        email: rawUser.email,
-        role: (rawUser.role as string).toLowerCase() as 'admin' | 'agent' | 'owner',
-        status: rawUser.isApproved ? ('active' as const) : ('pending' as const),
-        avatar: rawUser.avatar,
-      }
-      setAuth(normalizedUser, data.accessToken, data.refreshToken)
-      clearSession()
-      toast.success(`Welcome, ${normalizedUser.name}!`)
-
-      if (!rawUser.isApproved) {
-        router.push('/pending')
-        return
-      }
-      const routes: Record<string, string> = { admin: '/dashboard', agent: '/agent/dashboard', owner: '/owner/dashboard' }
-      router.push(routes[normalizedUser.role] ?? '/pending')
+      handleLoginFlow(data, setAuth, router)
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : ''
       toast.error(msg.includes('invalid-verification-code') ? 'Invalid OTP. Please try again.' : 'Verification failed. Please try again.')

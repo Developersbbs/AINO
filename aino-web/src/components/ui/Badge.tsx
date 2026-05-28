@@ -7,7 +7,7 @@ function badgeStyle(status: string): { background: string; color: string; border
   const s = (status ?? '').toLowerCase()
   if (['active', 'approved', 'published', 'confirmed', 'paid', 'sold'].includes(s))
     return { background: '#f0fdf4', color: '#15803d', border: '#bbf7d0' }
-  if (['pending', 'booked'].includes(s))
+  if (['pending', 'booked', 'unpaid'].includes(s))
     return { background: '#fffbeb', color: '#b45309', border: '#fde68a' }
   if (['deactivated', 'rejected', 'cancelled', 'inactive'].includes(s))
     return { background: '#fef2f2', color: '#dc2626', border: '#fecaca' }

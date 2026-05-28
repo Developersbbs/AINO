@@ -7,9 +7,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { auth } from '@/lib/firebase'
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth'
-import { Building2, Users, TrendingUp, Shield, ArrowRight, Loader2 } from 'lucide-react'
+import { Building2, Users, TrendingUp, Shield, ArrowRight, Loader2, Paperclip, X, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { setPendingDocs } from '@/lib/pendingDocs'
 
 const features = [
   { icon: Building2, text: 'Manage all your real estate projects' },
@@ -41,12 +42,25 @@ declare global {
 export default function RegisterPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [docHover, setDocHover] = useState(false)
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null)
+  const docInputRef = useRef<HTMLInputElement | null>(null)
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) })
+
+  function handleFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    setSelectedFiles((prev) => [...prev, ...files])
+    e.target.value = ''
+  }
+
+  function removeFile(index: number) {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
+  }
 
   useEffect(() => {
     const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-register', {
@@ -69,11 +83,12 @@ export default function RegisterPage() {
     try {
       const phoneNumber = `+91${data.phone}`
       const confirmation = await signInWithPhoneNumber(auth, phoneNumber, recaptchaRef.current)
-      window.confirmationResult = confirmation
+      globalThis.window.confirmationResult = confirmation
       sessionStorage.setItem('otp_phone', data.phone)
       sessionStorage.setItem('otp_flow', 'register')
-      window.registerData = { name: data.name, email: data.email || undefined, role: data.role }
-      sessionStorage.setItem('register_data', JSON.stringify(window.registerData))
+      globalThis.window.registerData = { name: data.name, email: data.email || undefined, role: data.role }
+      sessionStorage.setItem('register_data', JSON.stringify(globalThis.window.registerData))
+      setPendingDocs(selectedFiles)
       router.push('/otp')
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : ''
@@ -231,6 +246,62 @@ export default function RegisterPage() {
                   <option value="owner">Owner</option>
                 </select>
                 {errors.role && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 5 }}>{errors.role.message}</p>}
+              </div>
+
+              {/* Documents */}
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 }}>
+                  Documents <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => docInputRef.current?.click()}
+                  onMouseEnter={() => setDocHover(true)}
+                  onMouseLeave={() => setDocHover(false)}
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    border: `2px dashed ${docHover ? '#1e3c6e' : '#e2e8f0'}`,
+                    borderRadius: 12,
+                    background: docHover ? '#f0f4ff' : '#f8fafc',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <Paperclip size={16} color={docHover ? '#1e3c6e' : '#94a3b8'} />
+                  <span style={{ fontSize: 13, color: docHover ? '#1e3c6e' : '#64748b', fontWeight: 500 }}>
+                    Attach documents or images
+                  </span>
+                </button>
+                <input
+                  ref={docInputRef}
+                  type="file"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={handleFilesChange}
+                />
+                {selectedFiles.length > 0 && (
+                  <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {selectedFiles.map((file, i) => (
+                      <div key={`${file.name}-${file.lastModified}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#f1f5f9', borderRadius: 8 }}>
+                        <FileText size={13} color="#64748b" style={{ flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                        <span style={{ fontSize: 11, color: '#94a3b8', flexShrink: 0 }}>{(file.size / 1024).toFixed(0)} KB</span>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(i)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex', flexShrink: 0 }}
+                        >
+                          <X size={13} color="#94a3b8" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div id="recaptcha-container-register" />

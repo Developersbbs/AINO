@@ -74,7 +74,7 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.is_read).length
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
+    <div style={{ maxWidth: 672, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

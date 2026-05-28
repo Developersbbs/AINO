@@ -281,7 +281,7 @@ export default function ProjectDetailPage() {
 
       {/* Add Unit Modal */}
       <Modal open={addUnitOpen} onClose={() => setAddUnitOpen(false)} title="Add Unit" size="md">
-        <form onSubmit={handleSubmit((d) => addUnitMutation.mutate(d))} className="space-y-4">
+        <form onSubmit={handleSubmit((d) => addUnitMutation.mutate(d))} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Input label="Unit Number" error={errors.unitNumber?.message} {...register('unitNumber')} />
             <Input label="Type (e.g. 2BHK)" error={errors.type?.message} {...register('type')} />

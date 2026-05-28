@@ -15,11 +15,10 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 interface Commission {
   id: string
   agent: { name: string }
-  booking: { unit: string; project: string }
+  unit: { unit_number: string; project: { project_name: string } }
   amount: number
-  rate: number
-  status: 'pending' | 'paid'
-  createdAt: string
+  status: string
+  settled_at: string | null
 }
 
 interface CommissionConfig {
@@ -131,14 +130,14 @@ export default function CommissionsPage() {
                 {commissions.map((c) => (
                   <Tr key={c.id}>
                     <Td><span style={{ fontWeight: 600, color: '#0f172a' }}>{c.agent?.name ?? '—'}</span></Td>
-                    <Td>{c.booking?.unit ?? '—'}</Td>
-                    <Td>{c.booking?.project ?? '—'}</Td>
-                    <Td>{c.rate ? `${c.rate}%` : '—'}</Td>
+                    <Td>{c.unit?.unit_number ?? '—'}</Td>
+                    <Td>{c.unit?.project?.project_name ?? '—'}</Td>
+                    <Td>—</Td>
                     <Td><span style={{ fontWeight: 600, color: '#059669' }}>{formatCurrency(c.amount)}</span></Td>
                     <Td><Badge status={c.status} /></Td>
-                    <Td>{c.createdAt ? formatDate(c.createdAt) : '—'}</Td>
+                    <Td>{c.settled_at ? formatDate(c.settled_at) : '—'}</Td>
                     <Td>
-                      {c.status === 'pending' && (
+                      {c.status === 'Unpaid' && (
                         <Button size="sm" variant="success" onClick={() => payMutation.mutate(c.id)} loading={payMutation.isPending}>
                           <CheckCircle size={13} /> Mark Paid
                         </Button>

@@ -1,5 +1,4 @@
-import { cn } from '@/lib/utils'
-import { ButtonHTMLAttributes, forwardRef } from 'react'
+import { ButtonHTMLAttributes, CSSProperties, forwardRef, useState } from 'react'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'outline' | 'danger' | 'ghost' | 'success'
@@ -7,48 +6,79 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean
 }
 
+const baseStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+  borderRadius: 10,
+  fontWeight: 600,
+  fontFamily: 'inherit',
+  cursor: 'pointer',
+  transition: 'background 0.15s, opacity 0.15s',
+  border: 'none',
+  outline: 'none',
+  whiteSpace: 'nowrap',
+}
+
+type VariantStyles = { base: CSSProperties; hover: CSSProperties }
+
+const variantMap: Record<string, VariantStyles> = {
+  primary: {
+    base:  { background: '#1e3c6e', color: 'white', border: 'none' },
+    hover: { background: '#152d54' },
+  },
+  outline: {
+    base:  { background: 'transparent', color: '#1e3c6e', border: '1.5px solid #1e3c6e' },
+    hover: { background: 'rgba(30,60,110,0.05)' },
+  },
+  danger: {
+    base:  { background: '#dc2626', color: 'white', border: 'none' },
+    hover: { background: '#b91c1c' },
+  },
+  ghost: {
+    base:  { background: 'transparent', color: '#475569', border: 'none' },
+    hover: { background: '#f1f5f9' },
+  },
+  success: {
+    base:  { background: '#059669', color: 'white', border: 'none' },
+    hover: { background: '#047857' },
+  },
+}
+
+const sizeMap: Record<string, CSSProperties> = {
+  sm: { fontSize: 12, padding: '6px 12px' },
+  md: { fontSize: 13, padding: '9px 18px' },
+  lg: { fontSize: 15, padding: '12px 24px' },
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', loading, disabled, children, ...props }, ref) => {
-    const base =
-      'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2'
+  ({ variant = 'primary', size = 'md', loading, disabled, children, style, ...props }, ref) => {
+    const [hovered, setHovered] = useState(false)
+    const v = variantMap[variant]
 
-    const variants = {
-      primary: 'bg-[#1e3c6e] text-white hover:bg-[#152d54] focus:ring-[#1e3c6e]',
-      outline:
-        'border border-[#1e3c6e] text-[#1e3c6e] bg-transparent hover:bg-[#1e3c6e]/5 focus:ring-[#1e3c6e]',
-      danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
-      ghost: 'text-slate-600 bg-transparent hover:bg-slate-100 focus:ring-slate-400',
-      success: 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500',
-    }
-
-    const sizes = {
-      sm: 'text-xs px-3 py-1.5',
-      md: 'text-sm px-4 py-2',
-      lg: 'text-base px-6 py-3',
+    const computedStyle: CSSProperties = {
+      ...baseStyle,
+      ...v.base,
+      ...sizeMap[size],
+      ...(hovered && !disabled && !loading ? v.hover : {}),
+      ...(disabled || loading ? { opacity: 0.5, cursor: 'not-allowed' } : {}),
+      ...style,
     }
 
     return (
       <button
         ref={ref}
-        className={cn(base, variants[variant], sizes[size], className)}
+        style={computedStyle}
         disabled={disabled || loading}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         {...props}
       >
         {loading && (
-          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            />
+          <svg className="animate-spin" style={{ width: 16, height: 16 }} viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" style={{ opacity: 0.25 }} />
+            <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" style={{ opacity: 0.75 }} />
           </svg>
         )}
         {children}

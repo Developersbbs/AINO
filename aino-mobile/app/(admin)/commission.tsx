@@ -161,7 +161,7 @@ export default function CommissionConfigScreen() {
 
   const { data, isLoading, isError, refetch } = useQuery<CommissionConfig>({
     queryKey: ['commission-config'],
-    queryFn: () => api.get('/admin/commission-config').then((r) => r.data),
+    queryFn: () => api.get('/admin/commission-config').then((r) => r.data.data),
   });
 
   const globalRate = globalRateDraft ?? data?.globalRate ?? 3.0;

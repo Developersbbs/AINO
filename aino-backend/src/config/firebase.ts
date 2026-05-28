@@ -19,7 +19,10 @@ if (!admin.apps.length) {
     } as admin.ServiceAccount);
   }
 
-  admin.initializeApp({ credential });
+  admin.initializeApp({
+    credential,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  });
 }
 
 export default admin;

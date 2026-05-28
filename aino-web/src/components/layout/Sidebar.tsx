@@ -85,8 +85,21 @@ export function Sidebar({ open, onClose }: Readonly<SidebarProps>) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 z-40 h-full flex flex-col lg:translate-x-0 lg:static lg:z-auto transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'}`}
-        style={{ width: 240, background: NAVY, flexShrink: 0 }}
+        className="sidebar-panel"
+        style={{
+          width: 240,
+          background: NAVY,
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          zIndex: 40,
+          height: '100%',
+          transform: open ? 'translateX(0)' : 'translateX(-100%)',
+          transition: 'transform 0.3s ease',
+        }}
       >
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
@@ -171,6 +184,14 @@ export function Sidebar({ open, onClose }: Readonly<SidebarProps>) {
         }
         .hover-nav-item:hover svg {
           color: white !important;
+        }
+        @media (min-width: 1024px) {
+          .sidebar-panel {
+            position: static !important;
+            transform: none !important;
+            z-index: auto !important;
+            height: 100vh !important;
+          }
         }
       `}</style>
     </>

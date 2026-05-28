@@ -194,7 +194,7 @@ export default function OwnersPage() {
       )}
 
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add Owner">
-        <form onSubmit={handleSubmit((d) => addMutation.mutate(d))} className="space-y-4">
+        <form onSubmit={handleSubmit((d) => addMutation.mutate(d))} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Input label="Full Name" error={errors.name?.message} {...register('name')} />
           <Input label="Phone" leftAddon="+91" maxLength={10} inputMode="numeric" error={errors.phone?.message} {...register('phone')} />
           <Input label="Email (optional)" type="email" error={errors.email?.message} {...register('email')} />

@@ -53,21 +53,11 @@ export const documentUpload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
 });
 
-const USER_DOC_DIR = 'uploads/user-docs';
-fs.mkdirSync(USER_DOC_DIR, { recursive: true });
-
-const userDocStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, USER_DOC_DIR),
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `udoc-${uniqueSuffix}${path.extname(file.originalname)}`);
-  },
-});
-
+// userDocUpload uses memoryStorage so the buffer can be sent to Firebase Storage.
+// No file-type filter — accepts images, PDFs, Office docs, and any other file the user needs.
 export const userDocUpload = multer({
-  storage: userDocStorage,
-  fileFilter: docFilter,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
 });
 
 const csvFilter: multer.Options['fileFilter'] = (_req, file, cb) => {

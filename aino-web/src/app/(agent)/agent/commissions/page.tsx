@@ -11,11 +11,10 @@ import { formatDate, formatCurrency } from '@/lib/utils'
 
 interface Commission {
   id: string
-  booking: { unit: string; project: string }
-  rate: number
+  unit: { unit_number: string; project: { project_name: string } }
   amount: number
-  status: 'pending' | 'paid'
-  createdAt: string
+  status: string
+  settled_at: string | null
 }
 
 export default function AgentCommissionsPage() {
@@ -25,8 +24,8 @@ export default function AgentCommissionsPage() {
   })
 
   const totalEarned = commissions.reduce((sum, c) => sum + (c.amount ?? 0), 0)
-  const totalPaid = commissions.filter((c) => c.status === 'paid').reduce((sum, c) => sum + (c.amount ?? 0), 0)
-  const totalPending = commissions.filter((c) => c.status === 'pending').reduce((sum, c) => sum + (c.amount ?? 0), 0)
+  const totalPaid = commissions.filter((c) => c.status === 'Paid').reduce((sum, c) => sum + (c.amount ?? 0), 0)
+  const totalPending = commissions.filter((c) => c.status === 'Unpaid').reduce((sum, c) => sum + (c.amount ?? 0), 0)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -54,12 +53,12 @@ export default function AgentCommissionsPage() {
           <Tbody>
             {commissions.map((c) => (
               <Tr key={c.id}>
-                <Td><span style={{ fontWeight: 600, color: '#0f172a' }}>{c.booking?.unit ?? '—'}</span></Td>
-                <Td>{c.booking?.project ?? '—'}</Td>
-                <Td>{c.rate ? `${c.rate}%` : '—'}</Td>
+                <Td><span style={{ fontWeight: 600, color: '#0f172a' }}>{c.unit?.unit_number ?? '—'}</span></Td>
+                <Td>{c.unit?.project?.project_name ?? '—'}</Td>
+                <Td>—</Td>
                 <Td><span style={{ fontWeight: 600, color: '#059669' }}>{formatCurrency(c.amount)}</span></Td>
                 <Td><Badge status={c.status} /></Td>
-                <Td>{c.createdAt ? formatDate(c.createdAt) : '—'}</Td>
+                <Td>{c.settled_at ? formatDate(c.settled_at) : '—'}</Td>
               </Tr>
             ))}
           </Tbody>

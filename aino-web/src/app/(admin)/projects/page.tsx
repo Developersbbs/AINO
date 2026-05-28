@@ -315,7 +315,7 @@ export default function ProjectsPage() {
 
       {/* ── Create Project Modal ── */}
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create New Project" size="lg">
-        <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
+        <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ gridColumn: 'span 2' }}>
               <Input label="Project Name" error={errors.name?.message} {...register('name')} />
