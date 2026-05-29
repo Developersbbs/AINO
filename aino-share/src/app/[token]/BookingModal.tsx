@@ -23,18 +23,46 @@ type FormData = z.infer<typeof schema>
 interface Unit {
   id: string
   unitNumber: string
-  floor: number
+  sqFt: number
   price: number
-  type: string
+  facing: string
 }
 
 interface BookingModalProps {
   unit: Unit
   shareToken: string
+  agentId: string
   onClose: () => void
 }
 
-export function BookingModal({ unit, shareToken, onClose }: BookingModalProps) {
+const INPUT: React.CSSProperties = {
+  width: '100%',
+  border: '1px solid #e2e8f0',
+  borderRadius: 10,
+  padding: '10px 12px',
+  fontSize: 14,
+  outline: 'none',
+  boxSizing: 'border-box',
+  fontFamily: 'inherit',
+  color: '#0f172a',
+  background: '#fff',
+}
+
+const LABEL: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 500,
+  color: '#374151',
+  marginBottom: 6,
+  display: 'block',
+}
+
+const ERR: React.CSSProperties = {
+  fontSize: 11,
+  color: '#ef4444',
+  marginTop: 4,
+}
+
+export function BookingModal({ unit, shareToken, agentId, onClose }: Readonly<BookingModalProps>) {
   const [submitted, setSubmitted] = useState(false)
 
   const {
@@ -47,10 +75,10 @@ export function BookingModal({ unit, shareToken, onClose }: BookingModalProps) {
     try {
       await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/bookings`, {
         unitId: unit.id,
+        agentId,
         shareToken,
         customerName: data.name,
         customerPhone: `+91${data.phone}`,
-        note: data.note,
       })
       setSubmitted(true)
     } catch {
@@ -59,96 +87,154 @@ export function BookingModal({ unit, shareToken, onClose }: BookingModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 16,
+      background: 'rgba(0,0,0,0.55)',
+      backdropFilter: 'blur(4px)',
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 20,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+        width: '100%', maxWidth: 440,
+        overflow: 'hidden',
+      }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-[#1e3c6e]">
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 20px',
+          background: '#1e3c6e',
+        }}>
           <div>
-            <h2 className="text-lg font-semibold text-white">Book Unit {unit.unitNumber}</h2>
-            <p className="text-white/60 text-xs mt-0.5">
-              {unit.type} · Floor {unit.floor}
+            <h2 style={{ fontSize: 17, fontWeight: 600, color: '#fff', margin: 0 }}>
+              Book Unit {unit.unitNumber}
+            </h2>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
+              {unit.sqFt ? `${unit.sqFt.toLocaleString()} sqft` : ''}
+              {unit.sqFt && unit.facing ? ' · ' : ''}
+              {unit.facing ?? ''}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+            style={{
+              background: 'rgba(255,255,255,0.1)', border: 'none',
+              borderRadius: 8, padding: 6, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'rgba(255,255,255,0.7)',
+            }}
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="p-6">
+        <div style={{ padding: 24 }}>
           {submitted ? (
-            <div className="text-center py-6">
-              <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <svg className="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+              <div style={{
+                width: 56, height: 56, background: '#dcfce7', borderRadius: 28,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 12px',
+              }}>
+                <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-1">Booking Submitted!</h3>
-              <p className="text-slate-500 text-sm">
-                Your booking request for Unit {unit.unitNumber} has been submitted. Your agent will contact you shortly.
+              <h3 style={{ fontSize: 17, fontWeight: 600, color: '#0f172a', margin: '0 0 6px' }}>
+                Booking Submitted!
+              </h3>
+              <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
+                Your request for Unit {unit.unitNumber} has been submitted. Your agent will contact you shortly.
               </p>
               <button
                 onClick={onClose}
-                className="mt-5 px-5 py-2 bg-[#1e3c6e] text-white rounded-xl text-sm font-medium hover:bg-[#152d54] transition-colors"
+                style={{
+                  marginTop: 20, padding: '10px 24px',
+                  background: '#1e3c6e', color: '#fff', border: 'none',
+                  borderRadius: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                }}
               >
                 Close
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-slate-700">Full Name</label>
+            <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Name */}
+              <div>
+                <label htmlFor="bm-name" style={LABEL}>Full Name</label>
                 <input
+                  id="bm-name"
                   type="text"
                   placeholder="John Doe"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3c6e]/30 focus:border-[#1e3c6e]"
+                  style={INPUT}
                   {...register('name')}
                 />
-                {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+                {errors.name && <p style={ERR}>{errors.name.message}</p>}
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-slate-700">Phone Number</label>
-                <div className="flex">
-                  <span className="flex items-center px-3 bg-slate-100 border border-r-0 border-slate-200 rounded-l-lg text-sm text-slate-500">
+              {/* Phone */}
+              <div>
+                <label htmlFor="bm-phone" style={LABEL}>Phone Number</label>
+                <div style={{ display: 'flex' }}>
+                  <span style={{
+                    display: 'flex', alignItems: 'center',
+                    padding: '10px 12px',
+                    background: '#f8fafc', border: '1px solid #e2e8f0',
+                    borderRight: 'none', borderRadius: '10px 0 0 10px',
+                    fontSize: 13, color: '#64748b', flexShrink: 0,
+                  }}>
                     +91
                   </span>
                   <input
+                    id="bm-phone"
                     type="text"
                     inputMode="numeric"
                     maxLength={10}
                     placeholder="9876543210"
-                    className="flex-1 rounded-r-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3c6e]/30 focus:border-[#1e3c6e]"
+                    style={{ ...INPUT, borderRadius: '0 10px 10px 0' }}
                     {...register('phone')}
                   />
                 </div>
-                {errors.phone && <p className="text-xs text-red-500">{errors.phone.message}</p>}
+                {errors.phone && <p style={ERR}>{errors.phone.message}</p>}
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-slate-700">Note (optional)</label>
+              {/* Note */}
+              <div>
+                <label htmlFor="bm-note" style={LABEL}>Note (optional)</label>
                 <textarea
+                  id="bm-note"
                   placeholder="Any specific requirements or questions..."
                   rows={3}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3c6e]/30 focus:border-[#1e3c6e] resize-none"
+                  style={{ ...INPUT, resize: 'none', lineHeight: 1.5 }}
                   {...register('note')}
                 />
               </div>
 
-              <div className="flex gap-3 pt-2">
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
+                  style={{
+                    flex: 1, padding: '11px 0',
+                    border: '1px solid #e2e8f0', background: '#fff',
+                    color: '#374151', borderRadius: 10,
+                    fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#1e3c6e] text-white rounded-xl text-sm font-medium hover:bg-[#152d54] disabled:opacity-50 transition-colors"
+                  style={{
+                    flex: 1, padding: '11px 0',
+                    background: isSubmitting ? '#93a5c4' : '#1e3c6e',
+                    color: '#fff', border: 'none', borderRadius: 10,
+                    fontSize: 14, fontWeight: 500, cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}
                 >
                   {isSubmitting && <Loader2 size={14} className="animate-spin" />}
                   {isSubmitting ? 'Submitting...' : 'Submit Booking'}

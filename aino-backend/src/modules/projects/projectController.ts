@@ -95,11 +95,23 @@ export const assignOwner = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const backendBaseUrl = (): string =>
+  process.env.BACKEND_BASE_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
+
+function projectDocType(mimetype: string): string {
+  if (mimetype.includes('pdf')) return 'pdf'
+  if (mimetype.startsWith('image/')) return 'image'
+  if (mimetype.includes('word') || mimetype.includes('wordprocessingml')) return 'word'
+  if (mimetype.includes('sheet') || mimetype.includes('excel') || mimetype.includes('spreadsheetml')) return 'excel'
+  if (mimetype.includes('presentation') || mimetype.includes('powerpoint')) return 'ppt'
+  return 'document'
+}
+
 export const uploadLayout = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) return apiResponse(res, 400, null, 'No image file provided');
 
-    const imageUrl = `/uploads/layouts/${req.file.filename}`;
+    const imageUrl = `${backendBaseUrl()}/uploads/layouts/${req.file.filename}`;
     const project = await projectService.updateLayoutImage(String(req.params.id), imageUrl);
 
     return apiResponse(res, 200, { layoutImageUrl: imageUrl, project }, 'Layout image uploaded');
@@ -120,8 +132,8 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
     const existing = (project.documents as any[]) ?? [];
     const newDoc = {
       name: (req.body.name as string | undefined)?.trim() || req.file.originalname,
-      url: `/uploads/documents/${req.file.filename}`,
-      type: req.file.mimetype.includes('pdf') ? 'pdf' : 'image',
+      url: `${backendBaseUrl()}/uploads/documents/${req.file.filename}`,
+      type: projectDocType(req.file.mimetype),
       uploadedAt: new Date().toISOString(),
     };
 

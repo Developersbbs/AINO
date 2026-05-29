@@ -23,6 +23,7 @@ import type { AuthUser } from '@/src/stores/useAuthStore';
 import { getConfirmation, setConfirmation, clearConfirmation, consumeDevOtp } from '@/src/lib/phoneAuth';
 import { useRecaptchaVerifier } from '../../hooks/use-recaptcha-verifier';
 import { shadow } from '@/src/lib/shadow';
+import { getPendingDocs, clearPendingDocs, type PendingDoc } from '@/src/lib/pendingDocs';
 
 const DIGIT_COUNT = 6;
 const GREEN = '#1e3c6e';
@@ -108,6 +109,24 @@ async function execBackendOtpVerify(
   navigateAfterLogin(user.role, user.isApproved ?? true, router);
 }
 
+async function uploadPendingDocs(accessToken: string): Promise<void> {
+  const docs: PendingDoc[] = getPendingDocs();
+  if (docs.length === 0) return;
+  for (const doc of docs) {
+    try {
+      const fd = new FormData();
+      fd.append('file', { uri: doc.uri, name: doc.name, type: doc.mimeType } as any);
+      await api.post('/auth/me/documents', fd, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    } catch { /* non-fatal — docs can be uploaded later from profile */ }
+  }
+  clearPendingDocs();
+}
+
 async function execFirebaseVerify(
   otp: string,
   isRegister: boolean,
@@ -123,7 +142,9 @@ async function execFirebaseVerify(
   clearConfirmation();
 
   if (isRegister) {
-    await api.post('/auth/firebase-verify', { firebaseIdToken, name, email: email || undefined, role });
+    const regRes = await api.post('/auth/firebase-verify', { firebaseIdToken, name, email: email || undefined, role });
+    const regToken = (regRes.data as { accessToken?: string })?.accessToken;
+    if (regToken) await uploadPendingDocs(regToken);
     Alert.alert(
       'Registration Successful!',
       'Your account is pending admin approval.',

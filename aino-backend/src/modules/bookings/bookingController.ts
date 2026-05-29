@@ -2,14 +2,30 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middlewares/auth';
 import { apiResponse } from '../../utils/apiResponse';
 import redis from '../../config/redis';
+import prisma from '../../config/database';
 import * as bookingService from './bookingService';
 
 // ── POST / — Public (customer submits via share link) ─────────────────────────
 export const createBooking = async (req: Request, res: Response, next: NextFunction) => {
-  const { unitId, agentId, customerName, customerPhone, shareToken } = req.body;
+  const { unitId, customerName, customerPhone, shareToken } = req.body;
+  let { agentId } = req.body;
 
-  if (!unitId || !agentId || !customerName || !customerPhone) {
-    return apiResponse(res, 400, null, 'unitId, agentId, customerName, and customerPhone are required');
+  if (!unitId || !customerName || !customerPhone) {
+    return apiResponse(res, 400, null, 'unitId, customerName, and customerPhone are required');
+  }
+
+  // Resolve agentId from shareToken when not supplied by the client
+  if (!agentId && shareToken) {
+    const lead = await prisma.lead.findUnique({
+      where: { share_token: String(shareToken) },
+      select: { agent_id: true },
+    });
+    if (!lead) return apiResponse(res, 404, null, 'Invalid share token');
+    agentId = lead.agent_id;
+  }
+
+  if (!agentId) {
+    return apiResponse(res, 400, null, 'agentId or shareToken is required');
   }
 
   const lockKey = `unit_lock:${unitId}`;

@@ -55,9 +55,9 @@ function getGreeting() {
   return 'Good evening';
 }
 
-const SHARE_BASE = process.env.EXPO_PUBLIC_SHARE_URL ?? 'http://localhost:3000';
+const SHARE_BASE = process.env.EXPO_PUBLIC_SHARE_URL ?? 'http://localhost:3002';
 function shareUrl(token: string) {
-  return `${SHARE_BASE}/book/${token}`;
+  return `${SHARE_BASE}/${token}`;
 }
 
 function formatDate(iso: string): string {

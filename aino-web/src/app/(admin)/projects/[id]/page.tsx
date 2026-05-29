@@ -20,12 +20,10 @@ import { z } from 'zod'
 interface Unit {
   id: string
   unitNumber: string
-  floor: number
   facing: string
-  size: number
+  sqFt: number
   price: number
-  status: 'available' | 'booked' | 'sold'
-  type: string
+  status: string
 }
 
 interface ProjectDetail {
@@ -40,22 +38,22 @@ interface ProjectDetail {
   priceMax?: number
   owner?: { id: string; name: string }
   layoutUrl?: string
-  units: Unit[]
-  documents: Array<{ id: string; name: string; url: string; createdAt: string }>
+  documents: Array<{ name: string; url: string; uploadedAt?: string; createdAt?: string }>
 }
 
 const unitSchema = z.object({
   unitNumber: z.string().min(1, 'Required'),
-  floor: z.coerce.number().min(0),
-  facing: z.string().min(1, 'Required'),
-  size: z.coerce.number().min(1),
-  price: z.coerce.number().min(1),
-  type: z.string().min(1, 'Required'),
+  sqFt: z.coerce.number().min(1, 'Required'),
+  price: z.coerce.number().min(1, 'Required'),
+  facing: z.string().optional(),
 })
 
 type UnitData = z.infer<typeof unitSchema>
 
 type TabType = 'overview' | 'units' | 'documents'
+
+const MAX_LAYOUT_MB = 4
+const MAX_LAYOUT_BYTES = MAX_LAYOUT_MB * 1024 * 1024
 
 function tabStyle(active: boolean) {
   return {
@@ -65,6 +63,56 @@ function tabStyle(active: boolean) {
     color: active ? '#1e3c6e' : '#64748b',
     boxShadow: active ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
   } as const
+}
+
+function mapUnit(u: Record<string, unknown>): Unit {
+  return {
+    id: u.id as string,
+    unitNumber: (u.unit_number ?? u.unitNumber ?? '') as string,
+    facing: (u.facing ?? '') as string,
+    sqFt: ((u.sq_ft ?? u.sqFt ?? 0) as number),
+    price: (u.price ?? 0) as number,
+    status: (u.status ?? 'Available') as string,
+  }
+}
+
+// Prefix relative paths with the backend origin so images/docs load correctly
+// regardless of where the web app is hosted.
+const BACKEND_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/api\/?$/, '')
+
+function toAbsoluteUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined
+  if (url.startsWith('http')) return url
+  return `${BACKEND_ORIGIN}${url}`
+}
+
+function mapProject(p: Record<string, unknown>): ProjectDetail {
+  const rawUnits = (p.units as Record<string, unknown>[] | undefined) ?? []
+  const prices = rawUnits.map((u) => (u.price ?? 0) as number).filter((v) => v > 0)
+  const availableCount = rawUnits.filter((u) => {
+    const s = u.status
+    return typeof s === 'string' && s.toLowerCase() === 'available'
+  }).length
+  const docs = (p.documents as Array<Record<string, unknown>> | undefined) ?? []
+  return {
+    id: p.id as string,
+    name: (p.project_name ?? p.name ?? '') as string,
+    location: (p.location ?? '') as string,
+    description: (p.description ?? '') as string,
+    status: (p.status ?? '') as string,
+    totalUnits: rawUnits.length,
+    availableUnits: availableCount,
+    priceMin: prices.length ? Math.min(...prices) : undefined,
+    priceMax: prices.length ? Math.max(...prices) : undefined,
+    owner: p.owner as ProjectDetail['owner'],
+    layoutUrl: toAbsoluteUrl((p.layout_image_url ?? p.layoutUrl) as string | undefined),
+    documents: docs.map((d) => ({
+      name: (d.name ?? d.docType ?? 'Document') as string,
+      url: toAbsoluteUrl(d.url as string) ?? '',
+      uploadedAt: d.uploadedAt as string | undefined,
+      createdAt: d.createdAt as string | undefined,
+    })),
+  }
 }
 
 export default function ProjectDetailPage() {
@@ -78,21 +126,29 @@ export default function ProjectDetailPage() {
 
   const { data: project, isLoading } = useQuery<ProjectDetail>({
     queryKey: ['project', id],
-    queryFn: () => api.get(`/projects/${id}`).then((r) => r.data),
+    queryFn: () => api.get(`/projects/${id}`).then((r) => mapProject(r.data as Record<string, unknown>)),
   })
 
   const { data: units = [] } = useQuery<Unit[]>({
     queryKey: ['project-units', id],
     queryFn: () => api.get(`/projects/${id}/units`).then((r) => {
-      const d = r.data
-      return Array.isArray(d) ? d : (d?.units ?? [])
+      const raw = r.data as Record<string, unknown>
+      const list: Record<string, unknown>[] = Array.isArray(raw) ? raw : ((raw?.units ?? []) as Record<string, unknown>[])
+      return list.map(mapUnit)
     }),
   })
 
   const addUnitMutation = useMutation({
-    mutationFn: (data: UnitData) => api.post('/units', { ...data, projectId: id }),
+    mutationFn: (data: UnitData) => api.post('/units', {
+      unitNumber: data.unitNumber,
+      sqFt: data.sqFt,
+      price: data.price,
+      facing: data.facing || undefined,
+      projectId: id,
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['project-units', id] })
+      qc.invalidateQueries({ queryKey: ['project', id] })
       setAddUnitOpen(false)
       reset()
       toast.success('Unit added')
@@ -103,18 +159,25 @@ export default function ProjectDetailPage() {
   const uploadLayoutMutation = useMutation({
     mutationFn: (file: File) => {
       const fd = new FormData()
-      fd.append('layout', file)
-      return api.post(`/projects/${id}/layout`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      fd.append('image', file)   // backend: layoutUpload.single('image')
+      return api.post(`/projects/${id}/layout`, fd)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project', id] }); toast.success('Layout uploaded') },
-    onError: () => toast.error('Failed to upload layout'),
+    onError: (err: unknown) => {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      if (status === 413) {
+        toast.error(`File too large — max ${MAX_LAYOUT_MB} MB. Reduce the image size and try again.`)
+      } else {
+        toast.error('Failed to upload layout')
+      }
+    },
   })
 
   const uploadDocsMutation = useMutation({
     mutationFn: (file: File) => {
       const fd = new FormData()
-      fd.append('document', file)
-      return api.post(`/projects/${id}/documents`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      fd.append('file', file)    // backend: documentUpload.single('file')
+      return api.post(`/projects/${id}/documents`, fd)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project', id] }); toast.success('Document uploaded') },
     onError: () => toast.error('Failed to upload document'),
@@ -124,7 +187,7 @@ export default function ProjectDetailPage() {
     mutationFn: (file: File) => {
       const fd = new FormData()
       fd.append('file', file)
-      return api.post('/units/bulk', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      return api.post('/units/bulk', fd)
     },
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['project-units', id] })
@@ -132,6 +195,14 @@ export default function ProjectDetailPage() {
     },
     onError: () => toast.error('Failed to import CSV'),
   })
+
+  function handleLayoutFile(file: File) {
+    if (file.size > MAX_LAYOUT_BYTES) {
+      toast.error(`Image is ${(file.size / 1024 / 1024).toFixed(1)} MB — max ${MAX_LAYOUT_MB} MB. Please compress it first.`)
+      return
+    }
+    uploadLayoutMutation.mutate(file)
+  }
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<UnitData>({ resolver: zodResolver(unitSchema) })
 
@@ -143,8 +214,6 @@ export default function ProjectDetailPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <style>{`.tbl-row:hover { background: #f8fafc; } .tbl-row:last-child { border-bottom: none; }`}</style>
-
       {/* Header Card */}
       <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: '20px 24px' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
@@ -164,8 +233,8 @@ export default function ProjectDetailPage() {
               <Upload size={14} /> Upload Doc
             </Button>
             <input ref={layoutInputRef} type="file" accept="image/*" style={{ display: 'none' }}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) { uploadLayoutMutation.mutate(f) } e.target.value = '' }} />
-            <input ref={docsInputRef} type="file" accept=".pdf,.doc,.docx" style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleLayoutFile(f) } e.target.value = '' }} />
+            <input ref={docsInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" style={{ display: 'none' }}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) { uploadDocsMutation.mutate(f) } e.target.value = '' }} />
           </div>
         </div>
@@ -183,7 +252,7 @@ export default function ProjectDetailPage() {
           <div>
             <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price Range</p>
             <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: 0 }}>
-              {project.priceMin && project.priceMax
+              {project.priceMin != null && project.priceMax != null
                 ? `${formatCurrency(project.priceMin)} – ${formatCurrency(project.priceMax)}`
                 : '—'}
             </p>
@@ -193,7 +262,7 @@ export default function ProjectDetailPage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 2, background: '#f1f5f9', borderRadius: 10, padding: 4, width: 'fit-content' }}>
-        {(['overview', 'units', 'documents'] as TabType[]).map((t) => (
+        {(['overview', 'units', 'documents'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} style={tabStyle(tab === t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
@@ -204,10 +273,11 @@ export default function ProjectDetailPage() {
       {tab === 'overview' && (
         <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: 24 }}>
           <p style={{ fontWeight: 600, color: '#0f172a', margin: '0 0 10px' }}>Description</p>
-          <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, margin: 0 }}>{project.description ?? 'No description provided.'}</p>
+          <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, margin: 0 }}>{project.description || 'No description provided.'}</p>
           {project.layoutUrl && (
             <div style={{ marginTop: 20 }}>
               <p style={{ fontWeight: 600, color: '#0f172a', margin: '0 0 10px' }}>Layout</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={project.layoutUrl} alt="Layout" style={{ borderRadius: 10, border: '1px solid #e2e8f0', maxWidth: '100%', maxHeight: 384, objectFit: 'contain' }} />
             </div>
           )}
@@ -231,17 +301,15 @@ export default function ProjectDetailPage() {
             <Table>
               <Thead>
                 <tr>
-                  <Th>Unit No.</Th><Th>Type</Th><Th>Floor</Th><Th>Facing</Th><Th>Size (sqft)</Th><Th>Price</Th><Th>Status</Th>
+                  <Th>Unit No.</Th><Th>Facing</Th><Th>Size (sqft)</Th><Th>Price</Th><Th>Status</Th>
                 </tr>
               </Thead>
               <Tbody>
                 {units.map((unit) => (
                   <Tr key={unit.id}>
                     <Td><span style={{ fontWeight: 600, color: '#0f172a' }}>{unit.unitNumber}</span></Td>
-                    <Td>{unit.type}</Td>
-                    <Td>{unit.floor}</Td>
-                    <Td>{unit.facing}</Td>
-                    <Td>{unit.size.toLocaleString()}</Td>
+                    <Td>{unit.facing || '—'}</Td>
+                    <Td>{unit.sqFt?.toLocaleString() ?? '—'}</Td>
                     <Td><span style={{ fontWeight: 600, color: '#059669' }}>{formatCurrency(unit.price)}</span></Td>
                     <Td><Badge status={unit.status} /></Td>
                   </Tr>
@@ -255,18 +323,20 @@ export default function ProjectDetailPage() {
       {/* Documents Tab */}
       {tab === 'documents' && (
         <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: 24 }}>
-          {(!project.documents || project.documents.length === 0) && (
+          {project.documents.length === 0 && (
             <EmptyState icon={FileText} title="No documents" description="Upload project documents" />
           )}
-          {project.documents && project.documents.length > 0 && (
+          {project.documents.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {project.documents.map((doc) => (
-                <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', border: '1px solid #f1f5f9', borderRadius: 8 }}>
+              {project.documents.map((doc, i) => (
+                <div key={`${doc.name}-${i}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', border: '1px solid #f1f5f9', borderRadius: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <FileText size={16} style={{ color: '#94a3b8', flexShrink: 0 }} />
                     <div>
                       <p style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', margin: 0 }}>{doc.name}</p>
-                      <p style={{ fontSize: 11, color: '#94a3b8', margin: '2px 0 0' }}>{formatDate(doc.createdAt)}</p>
+                      {(doc.createdAt ?? doc.uploadedAt) && (
+                        <p style={{ fontSize: 11, color: '#94a3b8', margin: '2px 0 0' }}>{formatDate((doc.createdAt ?? doc.uploadedAt)!)}</p>
+                      )}
                     </div>
                   </div>
                   <a href={doc.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#1e3c6e', fontWeight: 600, textDecoration: 'none' }}>
@@ -284,10 +354,8 @@ export default function ProjectDetailPage() {
         <form onSubmit={handleSubmit((d) => addUnitMutation.mutate(d))} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Input label="Unit Number" error={errors.unitNumber?.message} {...register('unitNumber')} />
-            <Input label="Type (e.g. 2BHK)" error={errors.type?.message} {...register('type')} />
-            <Input label="Floor" type="number" error={errors.floor?.message} {...register('floor')} />
-            <Input label="Facing" placeholder="North/South/East/West" error={errors.facing?.message} {...register('facing')} />
-            <Input label="Size (sqft)" type="number" error={errors.size?.message} {...register('size')} />
+            <Input label="Facing" placeholder="North / South / East / West" error={errors.facing?.message} {...register('facing')} />
+            <Input label="Size (sqft)" type="number" error={errors.sqFt?.message} {...register('sqFt')} />
             <Input label="Price (₹)" type="number" error={errors.price?.message} {...register('price')} />
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8 }}>

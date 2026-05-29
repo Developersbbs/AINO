@@ -14,12 +14,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { auth } from '@/config/firebase';
 import { signInWithPhoneNumber } from 'firebase/auth';
 import rnAuth from '@react-native-firebase/auth';
 import { setConfirmation } from '@/src/lib/phoneAuth';
 import { useRecaptchaVerifier } from '../../hooks/use-recaptcha-verifier';
 import { shadow } from '@/src/lib/shadow';
+import { setPendingDocs, type PendingDoc } from '@/src/lib/pendingDocs';
 
 type Role = 'Agent' | 'Owner';
 
@@ -39,6 +41,23 @@ export default function RegisterScreen() {
   const [role, setRole] = useState<Role>('Agent');
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [selectedDocs, setSelectedDocs] = useState<PendingDoc[]>([]);
+
+  const handlePickDocs = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true });
+    if (result.canceled) return;
+    const picked: PendingDoc[] = result.assets.map((a) => ({
+      uri: a.uri,
+      name: a.name,
+      mimeType: a.mimeType ?? 'application/octet-stream',
+      size: a.size ?? 0,
+    }));
+    setSelectedDocs((prev) => [...prev, ...picked]);
+  };
+
+  const removeDoc = (index: number) => {
+    setSelectedDocs((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSendOtp = async () => {
     if (!name.trim()) return Alert.alert('Required', 'Full name is required.');
@@ -54,6 +73,7 @@ export default function RegisterScreen() {
         const confirmation = await rnAuth().signInWithPhoneNumber(fullPhone);
         setConfirmation(confirmation);
       }
+      setPendingDocs(selectedDocs);
       router.push({
         pathname: '/(auth)/otp' as any,
         params: { phone: fullPhone, name: name.trim(), email: email.trim(), role, mode: 'register' },
@@ -153,6 +173,24 @@ export default function RegisterScreen() {
               })}
             </View>
 
+            {/* Documents (optional) */}
+            <Text style={s.label}>DOCUMENTS (optional)</Text>
+            <TouchableOpacity style={s.docPicker} onPress={handlePickDocs} activeOpacity={0.8}>
+              <Feather name="paperclip" size={16} color="#64748b" />
+              <Text style={s.docPickerText}>Attach documents or images</Text>
+            </TouchableOpacity>
+            {selectedDocs.map((doc, i) => (
+              <View key={`${doc.name}-${i}`} style={s.docRow}>
+                <Feather name="file-text" size={14} color="#64748b" style={{ marginRight: 8 }} />
+                <Text style={s.docName} numberOfLines={1}>{doc.name}</Text>
+                <Text style={s.docSize}>{(doc.size / 1024).toFixed(0)} KB</Text>
+                <TouchableOpacity onPress={() => removeDoc(i)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Feather name="x" size={14} color="#94a3b8" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            <View style={{ height: 20 }} />
+
             <TouchableOpacity
               style={[s.btn, loading && s.btnOff]}
               onPress={handleSendOtp}
@@ -200,7 +238,7 @@ function InputField({
   onFocus,
   onBlur,
   dialPrefix,
-}: {
+}: Readonly<{
   label: string;
   icon: React.ComponentProps<typeof Feather>['name'];
   placeholder: string;
@@ -213,7 +251,7 @@ function InputField({
   onFocus: () => void;
   onBlur: () => void;
   dialPrefix?: string;
-}) {
+}>) {
   return (
     <View style={s.fieldGroup}>
       <Text style={s.label}>{label}</Text>
@@ -355,4 +393,29 @@ const s = StyleSheet.create({
   },
   loginLink: { paddingVertical: 20, alignItems: 'center' },
   loginLinkText: { fontSize: 14, color: '#64748b' },
+  docPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderStyle: 'dashed',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    backgroundColor: '#f8fafc',
+  },
+  docPickerText: { fontSize: 14, color: '#64748b' },
+  docRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  docName: { flex: 1, fontSize: 13, color: '#0a0f1c', fontWeight: '500' },
+  docSize: { fontSize: 11, color: '#94a3b8', marginRight: 8 },
 });

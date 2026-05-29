@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { auth } from '@/lib/firebase'
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth'
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
 import { Building2, Users, TrendingUp, Shield, ArrowRight, Loader2, Paperclip, X, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -34,7 +34,6 @@ type FormData = z.infer<typeof schema>
 
 declare global {
   interface Window {
-    confirmationResult?: ConfirmationResult
     registerData?: { name: string; email?: string; role: string }
   }
 }
@@ -62,37 +61,41 @@ export default function RegisterPage() {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  useEffect(() => {
-    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-register', {
-      size: 'invisible',
-    })
-    verifier.render()
+  async function getVerifier(): Promise<RecaptchaVerifier> {
+    if (recaptchaRef.current) return recaptchaRef.current
+    const container = document.getElementById('recaptcha-container-register')
+    if (container) container.innerHTML = ''
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-register', { size: 'invisible' })
+    await verifier.render()
     recaptchaRef.current = verifier
-    return () => {
-      verifier.clear()
-      recaptchaRef.current = null
-    }
-  }, [])
+    return verifier
+  }
 
   async function onSubmit(data: FormData) {
-    if (!recaptchaRef.current) {
-      toast.error('reCAPTCHA not ready. Please refresh the page.')
-      return
-    }
     setLoading(true)
     try {
-      const phoneNumber = `+91${data.phone}`
-      const confirmation = await signInWithPhoneNumber(auth, phoneNumber, recaptchaRef.current)
-      globalThis.window.confirmationResult = confirmation
+      const verifier = await getVerifier()
+      const confirmation = await signInWithPhoneNumber(auth, `+91${data.phone}`, verifier)
+      ;(globalThis as any).confirmationResult = confirmation
       sessionStorage.setItem('otp_phone', data.phone)
       sessionStorage.setItem('otp_flow', 'register')
       globalThis.window.registerData = { name: data.name, email: data.email || undefined, role: data.role }
       sessionStorage.setItem('register_data', JSON.stringify(globalThis.window.registerData))
       setPendingDocs(selectedFiles)
       router.push('/otp')
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : ''
-      toast.error(msg.includes('invalid-phone') ? 'Invalid phone number' : 'Failed to send OTP. Try again.')
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? ''
+      const msg = (err as { message?: string })?.message ?? ''
+      console.error('[phone-auth]', { code, msg, err })
+      if (code === 'auth/invalid-phone-number') toast.error('Invalid phone number')
+      else if (code === 'auth/too-many-requests') toast.error('Too many attempts — try again later')
+      else if (code.startsWith('appCheck/')) toast.error('App Check not ready — register the debug token in Firebase Console')
+      else {
+        let fallback = 'Failed to send OTP — check browser console'
+        if (code) fallback = `Failed to send OTP (${code})`
+        else if (msg) fallback = `Error: ${msg.slice(0, 80)}`
+        toast.error(fallback)
+      }
       recaptchaRef.current?.clear()
       recaptchaRef.current = null
     } finally {
@@ -191,8 +194,9 @@ export default function RegisterPage() {
             <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               {/* Full Name */}
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 }}>Full Name</label>
+                <label htmlFor="reg-name" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 }}>Full Name</label>
                 <input
+                  id="reg-name"
                   type="text"
                   placeholder="John Doe"
                   style={{ ...fieldStyle, borderColor: errors.name ? '#ef4444' : '#e2e8f0' }}
@@ -203,13 +207,14 @@ export default function RegisterPage() {
 
               {/* Phone */}
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 }}>Phone Number</label>
+                <label htmlFor="reg-phone" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 }}>Phone Number</label>
                 <div style={{ display: 'flex', border: `1.5px solid ${errors.phone ? '#ef4444' : '#e2e8f0'}`, borderRadius: 12, overflow: 'hidden', background: 'white' }}>
                   <div style={{ padding: '0 16px', background: '#f1f5f9', borderRight: '1.5px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                     <span style={{ fontSize: 18 }}>🇮🇳</span>
                     <span style={{ fontSize: 14, fontWeight: 700, color: '#374151' }}>+91</span>
                   </div>
                   <input
+                    id="reg-phone"
                     type="tel"
                     placeholder="9876543210"
                     maxLength={10}
@@ -222,10 +227,11 @@ export default function RegisterPage() {
 
               {/* Email */}
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 }}>
+                <label htmlFor="reg-email" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 }}>
                   Email <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span>
                 </label>
                 <input
+                  id="reg-email"
                   type="email"
                   placeholder="john@example.com"
                   style={{ ...fieldStyle, borderColor: errors.email ? '#ef4444' : '#e2e8f0' }}
@@ -236,8 +242,9 @@ export default function RegisterPage() {
 
               {/* Role */}
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 }}>Role</label>
+                <label htmlFor="reg-role" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 7 }}>Role</label>
                 <select
+                  id="reg-role"
                   style={{ ...fieldStyle, borderColor: errors.role ? '#ef4444' : '#e2e8f0', cursor: 'pointer' }}
                   {...register('role')}
                 >

@@ -9,6 +9,8 @@ const projectPublicSelect = {
   config_attributes: true,
   layout_image_url: true,
   documents: true,
+  commission_rate: true,
+  booking_amount: true,
 };
 
 const unitPublicSelect = {
@@ -53,8 +55,9 @@ export const getAgentLeads = (agentId: string) => {
     select: {
       id: true,
       share_token: true,
-      first_click_at: true,
       customer_name: true,
+      customer_phone: true,
+      first_click_at: true,
       is_locked: true,
       project: { select: { id: true, project_name: true, location: true } },
     },

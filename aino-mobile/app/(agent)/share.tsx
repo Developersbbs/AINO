@@ -109,7 +109,7 @@ function deriveAmenities(units: Unit[]) {
       if (u.attributes[key]) present.add(key);
     }
   }
-  return [...present].filter((k) => AMENITY_MAP[k]).map((k) => ({ key: k, ...AMENITY_MAP[k] }));
+  return Array.from(present).filter((k) => AMENITY_MAP[k]).map((k) => ({ key: k, ...AMENITY_MAP[k] }));
 }
 
 function deriveStats(units: Unit[]) {
@@ -303,7 +303,13 @@ function AgentProjectDetail({ project, onBack }: Readonly<{ project: Project; on
       const { data } = await api.post('/leads/generate', {
         projectId: project.id, clientName: name, clientPhone: '+91' + digits,
       });
-      setLink({ projectName: project.project_name, clientName: name, shareToken: data.data.shareToken, shareUrl: data.data.shareUrl });
+      const base = process.env.EXPO_PUBLIC_SHARE_URL ?? 'http://localhost:3002';
+      setLink({
+        projectName: project.project_name,
+        clientName: name,
+        shareToken: data.data.shareToken,
+        shareUrl: `${base.replace(/\/$/, '')}/${data.data.shareToken}`,
+      });
       closeClientSheet();
     } catch (err: any) {
       Alert.alert('Error', err.response?.data?.message ?? 'Could not generate link.');

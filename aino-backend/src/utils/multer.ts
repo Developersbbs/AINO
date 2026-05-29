@@ -1,6 +1,6 @@
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+import path from 'node:path';
+import fs from 'node:fs';
 
 const UPLOAD_DIR = 'uploads/layouts';
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -39,11 +39,22 @@ const docStorage = multer.diskStorage({
 });
 
 const docFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
-  const allowed = ['image/jpeg', 'image/png', 'application/pdf'];
+  const allowed = [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain',
+    'text/csv',
+  ];
   if (allowed.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only JPEG, PNG and PDF files are accepted'));
+    cb(new Error('Unsupported file type. Accepted: images, PDF, Word, Excel, PowerPoint, TXT, CSV'));
   }
 };
 

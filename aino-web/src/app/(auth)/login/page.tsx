@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
@@ -21,19 +21,17 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null)
 
-  useEffect(() => {
-    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      size: 'invisible',
-    })
-    verifier.render()
+  async function getVerifier(): Promise<RecaptchaVerifier> {
+    if (recaptchaRef.current) return recaptchaRef.current
+    const container = document.getElementById('recaptcha-container')
+    if (container) container.innerHTML = ''
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' })
+    await verifier.render()
     recaptchaRef.current = verifier
-    return () => {
-      verifier.clear()
-      recaptchaRef.current = null
-    }
-  }, [])
+    return verifier
+  }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
     const digits = phone.replace(/\D/g, '')
@@ -41,19 +39,27 @@ export default function LoginPage() {
       setError('Enter a valid 10-digit phone number')
       return
     }
-    if (!recaptchaRef.current) {
-      setError('reCAPTCHA not ready. Please refresh the page.')
-      return
-    }
     setLoading(true)
     try {
-      const confirmation = await signInWithPhoneNumber(auth, `+91${digits}`, recaptchaRef.current)
+      const verifier = await getVerifier()
+      const confirmation = await signInWithPhoneNumber(auth, `+91${digits}`, verifier)
+      ;(globalThis as any).confirmationResult = confirmation
       sessionStorage.setItem('otp_phone', digits)
       sessionStorage.setItem('otp_flow', 'login')
-      ;(window as any).confirmationResult = confirmation
       router.push('/otp')
-    } catch {
-      setError('Failed to send OTP. Please try again.')
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? ''
+      const msg = (err as { message?: string })?.message ?? ''
+      console.error('[phone-auth]', { code, msg, err })
+      if (code === 'auth/invalid-phone-number') setError('Invalid phone number')
+      else if (code === 'auth/too-many-requests') setError('Too many attempts — try again later')
+      else if (code.startsWith('appCheck/')) setError('App Check not ready — register the debug token in Firebase Console')
+      else {
+        let fallback = 'Failed to send OTP — check browser console'
+        if (code) fallback = `Failed to send OTP (${code})`
+        else if (msg) fallback = `Error: ${msg.slice(0, 80)}`
+        setError(fallback)
+      }
       recaptchaRef.current?.clear()
       recaptchaRef.current = null
     } finally {
@@ -138,7 +144,7 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+                <label htmlFor="phone-input" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
                   Phone Number
                 </label>
                 <div style={{ display: 'flex', border: `1.5px solid ${error ? '#ef4444' : '#e2e8f0'}`, borderRadius: 12, overflow: 'hidden', background: 'white', transition: 'border-color 0.15s' }}>
@@ -147,6 +153,7 @@ export default function LoginPage() {
                     <span style={{ fontSize: 14, fontWeight: 700, color: '#374151' }}>+91</span>
                   </div>
                   <input
+                    id="phone-input"
                     type="tel"
                     value={phone}
                     onChange={e => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); setError('') }}

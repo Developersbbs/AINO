@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
-import { signInWithPhoneNumber, RecaptchaVerifier, ConfirmationResult } from 'firebase/auth'
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
 import axios from 'axios'
 import api from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
@@ -14,7 +14,7 @@ import { getPendingDocs, clearPendingDocs } from '@/lib/pendingDocs'
 
 declare global {
   interface Window {
-    confirmationResult?: ConfirmationResult
+    confirmationResult?: import('firebase/auth').ConfirmationResult
     registerData?: { name: string; email?: string; role: string }
   }
 }
@@ -82,17 +82,16 @@ function handleLoginFlow(data: Record<string, unknown>, setAuth: SetAuthFn, rout
 function buildVerifyBody(firebaseIdToken: string): Record<string, string> {
   const body: Record<string, string> = { firebaseIdToken }
   const flow = sessionStorage.getItem('otp_flow')
-  const registerData = globalThis.window?.registerData
-  if (flow === 'register' && registerData) {
-    if (registerData.name) body.name = registerData.name
-    if (registerData.email) body.email = registerData.email
-    // Backend expects 'Agent' | 'Owner' (capitalized)
-    if (registerData.role) {
-      body.role = registerData.role.charAt(0).toUpperCase() + registerData.role.slice(1)
-    }
+  const rd = globalThis.window?.registerData
+  if (flow === 'register' && rd) {
+    if (rd.name) body.name = rd.name
+    if (rd.email) body.email = rd.email
+    if (rd.role) body.role = rd.role.charAt(0).toUpperCase() + rd.role.slice(1)
   }
   return body
 }
+
+const OTP_SLOTS = ['s0', 's1', 's2', 's3', 's4', 's5'] as const
 
 export default function OtpPage() {
   const router = useRouter()
@@ -104,7 +103,7 @@ export default function OtpPage() {
   const [canResend, setCanResend] = useState(false)
   const inputs = useRef<(HTMLInputElement | null)[]>([])
   const [phone, setPhone] = useState('')
-  const resendRecaptchaRef = useRef<RecaptchaVerifier | null>(null)
+  const resendVerifierRef = useRef<RecaptchaVerifier | null>(null)
 
   useEffect(() => {
     const storedPhone = sessionStorage.getItem('otp_phone')
@@ -141,15 +140,16 @@ export default function OtpPage() {
   async function handleVerify() {
     const code = otp.join('')
     if (code.length !== 6) { toast.error('Enter the complete 6-digit OTP'); return }
-    if (!globalThis.window?.confirmationResult) { toast.error('Session expired. Please request OTP again.'); return }
-
+    if (!globalThis.window?.confirmationResult) {
+      toast.error('Session expired. Please go back and request a new OTP.')
+      return
+    }
     setLoading(true)
     try {
       const result = await globalThis.window.confirmationResult.confirm(code)
       const firebaseIdToken = await result.user.getIdToken()
       const res = await api.post('/auth/firebase-verify', buildVerifyBody(firebaseIdToken))
       const data = res.data as Record<string, unknown>
-
       if (data.requiresRegistration) {
         toast.info('Phone not registered. Please create an account.')
         router.push('/register')
@@ -160,25 +160,31 @@ export default function OtpPage() {
         return
       }
       handleLoginFlow(data, setAuth, router)
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : ''
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? ''
       toast.error(msg.includes('invalid-verification-code') ? 'Invalid OTP. Please try again.' : 'Verification failed. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
+  async function getResendVerifier(): Promise<RecaptchaVerifier> {
+    if (resendVerifierRef.current) return resendVerifierRef.current
+    const container = document.getElementById('recaptcha-resend')
+    if (container) container.innerHTML = ''
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-resend', { size: 'invisible' })
+    await verifier.render()
+    resendVerifierRef.current = verifier
+    return verifier
+  }
+
   async function handleResend() {
     if (!phone) return
     setResendLoading(true)
     try {
-      if (!resendRecaptchaRef.current) {
-        const verifier = new RecaptchaVerifier(auth, 'recaptcha-resend', { size: 'invisible' })
-        await verifier.render()
-        resendRecaptchaRef.current = verifier
-      }
-      const confirmation = await signInWithPhoneNumber(auth, `+91${phone}`, resendRecaptchaRef.current)
-      globalThis.window.confirmationResult = confirmation
+      const verifier = await getResendVerifier()
+      const confirmation = await signInWithPhoneNumber(auth, `+91${phone}`, verifier)
+      ;(globalThis as any).confirmationResult = confirmation
       setOtp(['', '', '', '', '', ''])
       setCountdown(30)
       setCanResend(false)
@@ -186,8 +192,8 @@ export default function OtpPage() {
       inputs.current[0]?.focus()
     } catch {
       toast.error('Failed to resend OTP. Try again.')
-      resendRecaptchaRef.current?.clear()
-      resendRecaptchaRef.current = null
+      resendVerifierRef.current?.clear()
+      resendVerifierRef.current = null
     } finally {
       setResendLoading(false)
     }
@@ -272,9 +278,11 @@ export default function OtpPage() {
 
             {/* OTP inputs */}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 28 }}>
-              {otp.map((digit, index) => (
+              {OTP_SLOTS.map((slot, index) => {
+                const digit = otp[index]
+                return (
                 <input
-                  key={index}
+                  key={slot}
                   ref={(el) => { inputs.current[index] = el }}
                   type="text"
                   inputMode="numeric"
@@ -298,7 +306,8 @@ export default function OtpPage() {
                     fontFamily: 'inherit',
                   }}
                 />
-              ))}
+                )
+              })}
             </div>
 
             {/* Verify button */}

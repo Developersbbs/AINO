@@ -35,9 +35,10 @@ const adminNav: NavItem[] = [
 const agentNav: NavItem[] = [
   { label: 'Dashboard',   href: '/agent/dashboard',  icon: LayoutDashboard },
   { label: 'Projects',    href: '/agent/projects',   icon: Building2 },
-  { label: 'My Leads',    href: '/agent/leads',      icon: Share2 },
+  { label: 'Share',       href: '/agent/share',      icon: Share2 },
+  { label: 'My Leads',    href: '/agent/leads',      icon: ClipboardList },
   { label: 'Bookings',    href: '/agent/bookings',   icon: BookOpen },
-  { label: 'Commissions', href: '/agent/commissions',icon: DollarSign },
+  { label: 'Earnings',    href: '/agent/commissions',icon: DollarSign },
 ]
 
 const ownerNav: NavItem[] = [
