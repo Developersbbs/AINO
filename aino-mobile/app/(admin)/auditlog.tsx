@@ -73,17 +73,17 @@ function AuditEntry({ log }: Readonly<{ log: AuditLog }>) {
           {log.target_name ? <Text style={s.entryTarget}>{`  ·  ${log.target_name}`}</Text> : null}
         </Text>
 
-        {(log.old_value ?? log.new_value) && (
+        {!!(log.old_value ?? log.new_value) && (
           <View style={s.changeRow}>
-            {log.old_value && (
+            {!!log.old_value && (
               <View style={s.changePill}>
                 <Text style={s.changePillText}>{log.old_value}</Text>
               </View>
             )}
-            {log.old_value && log.new_value && (
+            {!!(log.old_value && log.new_value) && (
               <Feather name="arrow-right" size={11} color="#94a3b8" />
             )}
-            {log.new_value && (
+            {!!log.new_value && (
               <View style={[s.changePill, { backgroundColor: meta.color + '14', borderColor: meta.color + '30' }]}>
                 <Text style={[s.changePillText, { color: meta.color }]}>{log.new_value}</Text>
               </View>
@@ -102,7 +102,13 @@ function AuditEntry({ log }: Readonly<{ log: AuditLog }>) {
 export default function AuditLogScreen() {
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<AuditLog[]>({
     queryKey: ['admin-audit-log'],
-    queryFn: () => api.get('/admin/audit-log').then((r) => r.data.data),
+    queryFn: async () => {
+      const { data: body } = await api.get('/admin/audit-log');
+      if (Array.isArray(body)) return body as AuditLog[];
+      if (Array.isArray(body?.data)) return body.data as AuditLog[];
+      return [] as AuditLog[];
+    },
+    retry: false,
   });
 
   const logs = data ?? [];
@@ -131,11 +137,12 @@ export default function AuditLogScreen() {
         </Text>
       </View>
 
-      {isLoading ? (
+      {isLoading && (
         <View style={s.center}>
           <ActivityIndicator size="large" color={NAVY} />
         </View>
-      ) : isError ? (
+      )}
+      {!isLoading && isError && (
         <View style={s.center}>
           <Feather name="wifi-off" size={40} color="#cbd5e1" />
           <Text style={s.centerText}>Could not load audit log</Text>
@@ -143,7 +150,8 @@ export default function AuditLogScreen() {
             <Text style={s.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      ) : (
+      )}
+      {!isLoading && !isError && (
         <FlatList
           data={logs}
           keyExtractor={(item) => item.id}

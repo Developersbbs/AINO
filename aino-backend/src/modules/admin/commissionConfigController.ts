@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth';
+import { apiResponse } from '../../utils/apiResponse';
 import * as svc from './commissionConfigService';
 import * as auditSvc from './auditLogService';
 
@@ -11,9 +12,9 @@ const fmtAmount = (v: number | null | undefined) => v == null ? 'Not set' : `₹
 export const getConfig = async (_req: AuthRequest, res: Response) => {
   try {
     const config = await svc.getCommissionConfig();
-    return res.status(200).json(config);
-  } catch (error) {
-    return res.status(500).json({ message: 'Server error', error });
+    return apiResponse(res, 200, config, 'Commission config retrieved');
+  } catch {
+    return apiResponse(res, 500, null, 'Server error');
   }
 };
 
