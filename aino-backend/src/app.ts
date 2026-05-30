@@ -10,11 +10,13 @@ import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
 
-// Build allowed-origins list from env, or fall back to reflecting any origin.
-// Production: set CORS_ORIGINS=https://your-domain.com,http://localhost:3000
-const corsOrigins: string[] | boolean = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
-  : true;
+// In development, allow all origins. In production, restrict to CORS_ORIGINS env list.
+const corsOrigins: string[] | boolean =
+  process.env.NODE_ENV !== 'production'
+    ? true
+    : process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
+      : true;
 
 const corsOptions: cors.CorsOptions = {
   origin: corsOrigins,
@@ -26,7 +28,7 @@ const corsOptions: cors.CorsOptions = {
 
 // Handle OPTIONS preflight before anything else so nginx/proxy errors
 // on the actual request don't strip CORS headers from the preflight response.
-app.options('*', cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));

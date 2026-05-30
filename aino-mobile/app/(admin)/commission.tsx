@@ -56,7 +56,7 @@ function RateStepper({
     <View style={st.stepper}>
       <TouchableOpacity
         style={[st.stepBtn, value <= min && st.stepBtnOff]}
-        onPress={() => onChange(Math.max(min, parseFloat((value - step).toFixed(1))))}
+        onPress={() => onChange(Math.max(min, Number.parseFloat((value - step).toFixed(1))))}
         disabled={value <= min}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
@@ -65,7 +65,7 @@ function RateStepper({
       <Text style={st.stepValue}>{value.toFixed(1)}%</Text>
       <TouchableOpacity
         style={[st.stepBtn, value >= max && st.stepBtnOff]}
-        onPress={() => onChange(Math.min(max, parseFloat((value + step).toFixed(1))))}
+        onPress={() => onChange(Math.min(max, Number.parseFloat((value + step).toFixed(1))))}
         disabled={value >= max}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
@@ -104,7 +104,7 @@ function AgentEditModal({
             </View>
             <View style={{ flex: 1 }}>
               <Text style={st.agentSheetName}>{agent.name}</Text>
-              <Text style={st.agentSheetSales}>{agent.sales} booking{agent.sales !== 1 ? 's' : ''}</Text>
+              <Text style={st.agentSheetSales}>{agent.sales} booking{agent.sales === 1 ? '' : 's'}</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Feather name="x" size={20} color="#64748b" />
@@ -161,16 +161,23 @@ export default function CommissionConfigScreen() {
 
   const { data, isLoading, isError, refetch } = useQuery<CommissionConfig>({
     queryKey: ['commission-config'],
-    queryFn: () => api.get('/admin/commission-config').then((r) => r.data.data),
+    queryFn: async () => {
+      const { data: body } = await api.get('/admin/commission-config');
+      // Handle both raw response and apiResponse-wrapped { success, data } envelope
+      const config = body?.data ?? body;
+      if (!config || typeof config.globalRate !== 'number') throw new Error('invalid');
+      return config as CommissionConfig;
+    },
+    retry: false,
   });
 
-  const globalRate = globalRateDraft ?? data?.globalRate ?? 3.0;
+  const globalRate = globalRateDraft ?? data?.globalRate ?? 3;
 
   const getProjectRate = (p: ProjectItem) =>
     projectRates[p.id] ?? p.commissionRate ?? globalRate;
 
   const getProjectAmount = (p: ProjectItem) =>
-    projectAmounts[p.id] ?? (p.bookingAmount != null ? p.bookingAmount.toString() : '');
+    projectAmounts[p.id] ?? (p.bookingAmount == null ? '' : p.bookingAmount.toString());
 
   // Mutations
   const globalMut = useMutation({
@@ -238,7 +245,7 @@ export default function CommissionConfigScreen() {
         const amtStr = projectAmounts[p.id];
         if (rate !== undefined || amtStr !== undefined) {
           const commissionRate = rate ?? p.commissionRate ?? globalRate;
-          const bookingAmount = amtStr !== undefined ? parseFloat(amtStr) || undefined : undefined;
+          const bookingAmount = amtStr !== undefined ? Number.parseFloat(amtStr) || undefined : undefined;
           tasks.push(api.patch(`/admin/commission-config/projects/${p.id}`, { commissionRate, bookingAmount }));
         }
       });
@@ -340,7 +347,7 @@ export default function CommissionConfigScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={st.projectName}>{project.name}</Text>
                     <Text style={st.projectMeta}>
-                      {project.type} · {project.unitCount} unit{project.unitCount !== 1 ? 's' : ''}
+                      {project.type} · {project.unitCount} unit{project.unitCount === 1 ? '' : 's'}
                     </Text>
                   </View>
                   <View style={[st.statusBadge, project.isPublished ? st.statusActive : st.statusDraft]}>
@@ -367,7 +374,7 @@ export default function CommissionConfigScreen() {
                     <TextInput
                       style={st.amountField}
                       value={amtStr}
-                      onChangeText={(v) => setProjectAmounts((prev) => ({ ...prev, [project.id]: v.replace(/[^0-9]/g, '') }))}
+                      onChangeText={(v) => setProjectAmounts((prev) => ({ ...prev, [project.id]: v.replace(/\D/g, '') }))}
                       keyboardType="number-pad"
                       placeholder="0"
                       placeholderTextColor="#94a3b8"
@@ -394,7 +401,7 @@ export default function CommissionConfigScreen() {
                   <TouchableOpacity
                     style={[st.saveBtn, { flex: 1 }, (!isDirty || projectMut.isPending) && st.btnOff]}
                     onPress={() => {
-                      const amt = amtStr ? parseFloat(amtStr) : undefined;
+                      const amt = amtStr ? Number.parseFloat(amtStr) : undefined;
                       projectMut.mutate({ id: project.id, commissionRate: rate, bookingAmount: amt });
                     }}
                     disabled={!isDirty || projectMut.isPending}
@@ -435,10 +442,10 @@ export default function CommissionConfigScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={st.agentName}>{agent.name}</Text>
-                      <Text style={st.agentSales}>{agent.sales} sale{agent.sales !== 1 ? 's' : ''}</Text>
+                      <Text style={st.agentSales}>{agent.sales} sale{agent.sales === 1 ? '' : 's'}</Text>
                     </View>
                     <View style={st.agentRateWrap}>
-                      <Text style={[st.agentRate, agent.commissionRate !== null && st.agentRateOverride]}>
+                      <Text style={[st.agentRate, agent.commissionRate !== null ? st.agentRateOverride : null]}>
                         {effectiveRate.toFixed(1)}%
                       </Text>
                       {agent.commissionRate !== null && (
