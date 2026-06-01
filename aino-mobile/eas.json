@@ -11,13 +11,15 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://aino.sbbstest.in/api"
+        "EXPO_PUBLIC_API_URL": "https://aino.sbbstest.in/api",
+        "EXPO_PUBLIC_SHARE_URL": "https://share.aino.sbbstest.in"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://aino.sbbstest.in/api"
+        "EXPO_PUBLIC_API_URL": "https://aino.sbbstest.in/api",
+        "EXPO_PUBLIC_SHARE_URL": "https://share.aino.sbbstest.in"
       }
     }
   },
