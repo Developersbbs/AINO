@@ -54,3 +54,64 @@ a {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* ── Responsive Layout ────────────────────────────────────────────────────── */
+
+.main-content {
+  padding: 24px;
+}
+
+/* ── Responsive Grids (targets inline styles via attribute selector) ──────── */
+
+/* Tablet (≤ 1024px): 4-col → 2-col, 3-col → 2-col */
+@media (max-width: 1024px) {
+  [style*="repeat(4, 1fr)"]  { grid-template-columns: repeat(2, 1fr) !important; }
+  [style*="repeat(3, 1fr)"]  { grid-template-columns: repeat(2, 1fr) !important; }
+  [style*="3fr 2fr"]         { grid-template-columns: 1fr !important; }
+}
+
+/* Mobile (≤ 640px): everything single column, tighter padding */
+@media (max-width: 640px) {
+  .main-content              { padding: 14px !important; }
+  [style*="repeat(4, 1fr)"]  { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  [style*="repeat(3, 1fr)"]  { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  [style*="repeat(2, 1fr)"]  { grid-template-columns: repeat(2, 1fr) !important; }
+  [style*="1fr 1fr"]         { grid-template-columns: 1fr !important; }
+  [style*="3fr 2fr"]         { grid-template-columns: 1fr !important; }
+}
+
+/* Small phone (≤ 480px): everything 1 column */
+@media (max-width: 480px) {
+  .main-content              { padding: 12px !important; }
+  [style*="repeat(4, 1fr)"]  { grid-template-columns: 1fr !important; gap: 10px !important; }
+  [style*="repeat(3, 1fr)"]  { grid-template-columns: 1fr !important; }
+  [style*="repeat(2, 1fr)"]  { grid-template-columns: 1fr !important; }
+  [style*="1fr 1fr"]         { grid-template-columns: 1fr !important; }
+}
+
+/* ── TopBar responsive ────────────────────────────────────────────────────── */
+.topbar-username { display: block; }
+.topbar-padding  { padding: 0 24px; }
+
+@media (max-width: 640px) {
+  .topbar-username { display: none !important; }
+  .topbar-padding  { padding: 0 12px !important; }
+}
+
+/* ── Table horizontal scroll hint ────────────────────────────────────────── */
+.table-wrap { -webkit-overflow-scrolling: touch; }
+
+/* ── Modal full-screen on small phones ───────────────────────────────────── */
+@media (max-width: 480px) {
+  .modal-panel {
+    border-radius: 16px 16px 0 0 !important;
+    max-height: 95vh !important;
+    margin-top: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+}

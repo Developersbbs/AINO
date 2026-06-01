@@ -188,10 +188,17 @@ export function Sidebar({ open, onClose }: Readonly<SidebarProps>) {
         }
         @media (min-width: 1024px) {
           .sidebar-panel {
-            position: static !important;
+            position: relative !important;
             transform: none !important;
             z-index: auto !important;
             height: 100vh !important;
+            flex-shrink: 0 !important;
+          }
+        }
+        @media (max-width: 1023px) {
+          .sidebar-panel {
+            position: fixed !important;
+            height: 100% !important;
           }
         }
       `}</style>

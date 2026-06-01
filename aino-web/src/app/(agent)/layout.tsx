@@ -8,7 +8,7 @@ import { TopBar } from '@/components/layout/TopBar'
 
 function getPageTitle(pathname: string): string {
   const segments = pathname.split('/').filter(Boolean)
-  const last = segments[segments.length - 1]
+  const last = segments.at(-1)
   if (!last || last === 'dashboard') return 'Dashboard'
   return last
     .split('-')
@@ -16,7 +16,7 @@ function getPageTitle(pathname: string): string {
     .join(' ')
 }
 
-export default function AgentLayout({ children }: { children: React.ReactNode }) {
+export default function AgentLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const { user, isLoaded, loadFromStorage } = useAuthStore()
   const router = useRouter()
   const pathname = usePathname()
@@ -50,7 +50,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <TopBar title={getPageTitle(pathname)} onMenuClick={() => setSidebarOpen(true)} />
-        <main style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>{children}</main>
+        <main style={{ flex: 1, overflowY: 'auto' }} className="main-content">{children}</main>
       </div>
     </div>
   )

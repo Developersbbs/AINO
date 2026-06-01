@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { X } from 'lucide-react'
 
 interface ModalProps {
@@ -19,8 +19,6 @@ const sizeWidths: Record<string, number> = {
 }
 
 export function Modal({ open, onClose, title, children, size = 'md' }: Readonly<ModalProps>) {
-  const overlayRef = useRef<HTMLDivElement>(null)
-
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
@@ -28,26 +26,38 @@ export function Modal({ open, onClose, title, children, size = 'md' }: Readonly<
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape' && open) onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    globalThis.addEventListener('keydown', handler)
+    return () => globalThis.removeEventListener('keydown', handler)
   }, [open, onClose])
 
   if (!open) return null
 
   return (
     <div
-      ref={overlayRef}
+      className="modal-overlay"
       style={{
         position: 'fixed', inset: 0, zIndex: 50,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 16,
-        background: 'rgba(0,0,0,0.5)',
-        backdropFilter: 'blur(4px)',
       }}
-      onClick={(e) => { if (e.target === overlayRef.current) onClose() }}
     >
-      <div
+      {/* Backdrop — native button so click-to-close is keyboard accessible */}
+      <button
+        type="button"
+        aria-label="Close modal"
+        onClick={onClose}
         style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(4px)',
+          border: 'none', cursor: 'default', padding: 0,
+        }}
+      />
+
+      <div
+        className="modal-panel"
+        style={{
+          position: 'relative', zIndex: 1,
           background: 'white',
           borderRadius: 20,
           boxShadow: '0 20px 60px rgba(0,0,0,0.2)',

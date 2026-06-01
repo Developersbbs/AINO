@@ -50,7 +50,7 @@ export function TopBar({ title, onMenuClick }: Readonly<TopBarProps>) {
 
   return (
     <>
-      <header style={{ height: 60, background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+      <header className="topbar-padding" style={{ height: 60, background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             type="button"
@@ -87,7 +87,7 @@ export function TopBar({ title, onMenuClick }: Readonly<TopBarProps>) {
               <div style={{ width: 32, height: 32, borderRadius: '50%', background: NAVY, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                 {user?.name?.charAt(0)?.toUpperCase() ?? 'U'}
               </div>
-              <div style={{ textAlign: 'left' }}>
+              <div className="topbar-username" style={{ textAlign: 'left' }}>
                 <p style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', margin: 0, lineHeight: 1.2 }}>{user?.name}</p>
                 <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, textTransform: 'capitalize' }}>{user?.role}</p>
               </div>
