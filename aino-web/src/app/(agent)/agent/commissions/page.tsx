@@ -29,7 +29,6 @@ export default function AgentCommissionsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <style>{`.tbl-row:hover { background: #f8fafc; } .tbl-row:last-child { border-bottom: none; }`}</style>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
         <StatCard label="Total Earned" value={formatCurrency(totalEarned)} icon={DollarSign} iconBg="#f0fdf4" iconColor="#059669" />

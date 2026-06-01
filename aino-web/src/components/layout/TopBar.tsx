@@ -49,7 +49,6 @@ export function TopBar({ title, onMenuClick }: Readonly<TopBarProps>) {
   }
 
   return (
-    <>
       <header className="topbar-padding" style={{ height: 60, background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
@@ -88,8 +87,8 @@ export function TopBar({ title, onMenuClick }: Readonly<TopBarProps>) {
                 {user?.name?.charAt(0)?.toUpperCase() ?? 'U'}
               </div>
               <div className="topbar-username" style={{ textAlign: 'left' }}>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', margin: 0, lineHeight: 1.2 }}>{user?.name}</p>
-                <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, textTransform: 'capitalize' }}>{user?.role}</p>
+                <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#0f172a', lineHeight: 1.2 }}>{user?.name}</span>
+                <span style={{ display: 'block', fontSize: 11, color: '#94a3b8', textTransform: 'capitalize' }}>{user?.role}</span>
               </div>
               <ChevronDown size={13} style={{ color: '#94a3b8' }} />
             </button>
@@ -136,12 +135,5 @@ export function TopBar({ title, onMenuClick }: Readonly<TopBarProps>) {
           </div>
         </div>
       </header>
-
-      <style>{`
-        .topbar-hover:hover { background: #f1f5f9 !important; }
-        .topbar-menu-hover:hover { background: #f8fafc !important; }
-        .topbar-menu-danger:hover { background: #fef2f2 !important; }
-      `}</style>
-    </>
   )
 }

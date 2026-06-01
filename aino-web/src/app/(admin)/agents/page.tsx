@@ -89,7 +89,6 @@ export default function AgentsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <style>{`.tbl-row:hover { background: #f8fafc; } .tbl-row:last-child { border-bottom: none; }`}</style>
 
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

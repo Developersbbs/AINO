@@ -70,7 +70,6 @@ export default function AgentLeadsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <style>{`.tbl-row:hover { background: #f8fafc; } .tbl-row:last-child { border-bottom: none; }`}</style>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

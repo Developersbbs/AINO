@@ -37,7 +37,6 @@ export default function AgentBookingsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <style>{`.tbl-row:hover { background: #f8fafc; }`}</style>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

@@ -177,32 +177,6 @@ export function Sidebar({ open, onClose }: Readonly<SidebarProps>) {
         </div>
       </aside>
 
-      <style>{`
-        .hover-nav-item:hover {
-          background: rgba(255,255,255,0.1) !important;
-          color: white !important;
-        }
-        .hover-nav-item:hover svg {
-          color: white !important;
-        }
-        .sidebar-close-btn { display: flex; }
-        @media (min-width: 1024px) {
-          .sidebar-panel {
-            position: relative !important;
-            transform: none !important;
-            z-index: auto !important;
-            height: 100vh !important;
-            flex-shrink: 0 !important;
-          }
-          .sidebar-close-btn { display: none !important; }
-        }
-        @media (max-width: 1023px) {
-          .sidebar-panel {
-            position: fixed !important;
-            height: 100% !important;
-          }
-        }
-      `}</style>
     </>
   )
 }
