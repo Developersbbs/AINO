@@ -6,53 +6,28 @@ datasource db {
   provider = "postgresql"
 }
 
-enum UserRole {
-  Admin
-  Owner
-  Agent
-}
-
-enum UnitStatus {
-  Available
-  Booked
-  Sold
-}
-
-enum CommissionStatus {
-  Unpaid
-  Paid
-}
-
-enum BookingStatus {
-  Pending
-  Confirmed
-  Sold
-  Rejected
-}
-
 model Settings {
   key   String @id
   value String
 }
 
 model User {
-  id              String    @id @default(uuid())
+  id              String         @id @default(uuid())
   name            String
-  phone           String    @unique
-  email           String?   @unique
+  phone           String         @unique
+  email           String?        @unique
   password        String?
   role            UserRole
-  is_approved     Boolean   @default(false)
+  is_approved     Boolean        @default(false)
+  created_at      DateTime       @default(now())
   documents       Json?
   commission_rate Float?
-  created_at      DateTime  @default(now())
-
-  projects         Project[]
-  booked_units     Unit[]
-  leads_handled    Lead[]
-  bookings         Booking[]
-  commissions      Commission[]
-  notifications    Notification[]
+  bookings        Booking[]
+  commissions     Commission[]
+  leads_handled   Lead[]
+  notifications   Notification[]
+  projects        Project[]
+  booked_units    Unit[]
 }
 
 model Notification {
@@ -64,7 +39,6 @@ model Notification {
   data       Json?
   is_read    Boolean  @default(false)
   created_at DateTime @default(now())
-
   user       User     @relation(fields: [user_id], references: [id])
 }
 
@@ -98,75 +72,94 @@ model Project {
   location          String
   rera_number       String?
   config_attributes Json?
-  documents         Json?
   is_published      Boolean  @default(false)
-  commission_rate   Float?
-  booking_amount    Float?
   created_at        DateTime @default(now())
-
+  documents         Json?
+  booking_amount    Float?
+  commission_rate   Float?
+  leads             Lead[]
   owner             User?    @relation(fields: [owner_id], references: [id])
   units             Unit[]
-  leads             Lead[]
 }
 
 model Unit {
-  id                 String     @id @default(uuid())
+  id                 String       @id @default(uuid())
   project_id         String
   unit_number        String
   sq_ft              Float
   price              Float
   facing             String?
   road_width         Float?
-  status             UnitStatus @default(Available)
+  status             UnitStatus   @default(Available)
   coordinates        Json?
-  attributes         Json?
   booked_by_agent_id String?
-
-  project            Project    @relation(fields: [project_id], references: [id])
-  booked_by_agent    User?      @relation(fields: [booked_by_agent_id], references: [id])
+  attributes         Json?
   bookings           Booking[]
   commissions        Commission[]
+  booked_by_agent    User?        @relation(fields: [booked_by_agent_id], references: [id])
+  project            Project      @relation(fields: [project_id], references: [id])
 
   @@unique([project_id, unit_number])
 }
 
 model Lead {
-  id               String   @id @default(uuid())
-  share_token      String   @unique
-  project_id       String
-  agent_id         String
-  customer_phone   String?
-  customer_name    String?
-  first_click_at   DateTime?
-  is_locked        Boolean  @default(true)
-
-  project          Project  @relation(fields: [project_id], references: [id])
-  agent            User     @relation(fields: [agent_id], references: [id])
+  id             String    @id @default(uuid())
+  share_token    String    @unique
+  project_id     String
+  agent_id       String
+  customer_phone String?
+  customer_name  String?
+  first_click_at DateTime?
+  is_locked      Boolean   @default(true)
+  agent          User      @relation(fields: [agent_id], references: [id])
+  project        Project   @relation(fields: [project_id], references: [id])
 }
 
 model Booking {
-  id               String        @id @default(uuid())
-  unit_id          String
-  agent_id         String
-  customer_name    String
-  customer_phone   String
-  booking_date     DateTime      @default(now())
-  status           BookingStatus @default(Pending)
-  confirmed_at     DateTime?
-  sold_at          DateTime?
-
-  unit             Unit     @relation(fields: [unit_id], references: [id])
-  agent            User     @relation(fields: [agent_id], references: [id])
+  id             String        @id @default(uuid())
+  unit_id        String
+  agent_id       String
+  customer_name  String
+  customer_phone String
+  booking_date   DateTime      @default(now())
+  confirmed_at   DateTime?
+  sold_at        DateTime?
+  status         BookingStatus @default(Pending)
+  agent          User          @relation(fields: [agent_id], references: [id])
+  unit           Unit          @relation(fields: [unit_id], references: [id])
 }
 
 model Commission {
-  id               String           @id @default(uuid())
-  unit_id          String
-  agent_id         String
-  amount           Float
-  status           CommissionStatus @default(Unpaid)
-  settled_at       DateTime?
+  id         String           @id @default(uuid())
+  unit_id    String
+  agent_id   String
+  amount     Float
+  status     CommissionStatus @default(Unpaid)
+  settled_at DateTime?
+  agent      User             @relation(fields: [agent_id], references: [id])
+  unit       Unit             @relation(fields: [unit_id], references: [id])
+}
 
-  unit             Unit     @relation(fields: [unit_id], references: [id])
-  agent            User     @relation(fields: [agent_id], references: [id])
+enum UserRole {
+  Admin
+  Owner
+  Agent
+}
+
+enum UnitStatus {
+  Available
+  Booked
+  Sold
+}
+
+enum CommissionStatus {
+  Unpaid
+  Paid
+}
+
+enum BookingStatus {
+  Pending
+  Confirmed
+  Sold
+  Rejected
 }

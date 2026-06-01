@@ -178,17 +178,33 @@ export default function ProfileScreen() {
       setUploading(true);
 
       const form = new FormData();
-      form.append('file', {
-        uri: asset.uri,
-        name: asset.name ?? 'document',
-        type: asset.mimeType ?? 'application/octet-stream',
-      } as any);
+
+      if (Platform.OS === 'web') {
+        // Web: use native File object if available, else fetch blob from URI
+        const webFile: Blob = (asset as any).file
+          ?? await fetch(asset.uri).then((r) => r.blob());
+        const named = new File(
+          [webFile],
+          asset.name ?? 'document',
+          { type: asset.mimeType ?? webFile.type ?? 'application/octet-stream' },
+        );
+        form.append('file', named);
+        // Do NOT set Content-Type — browser adds correct multipart boundary
+      } else {
+        // Native: React Native multipart object
+        form.append('file', {
+          uri: asset.uri,
+          name: asset.name ?? 'document',
+          type: asset.mimeType ?? 'application/octet-stream',
+        } as any);
+      }
       form.append('docType', selectedType);
 
       await api.post('/auth/me/documents', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: Platform.OS === 'web' ? {} : { 'Content-Type': 'multipart/form-data' },
       });
       qc.invalidateQueries({ queryKey: ['profile-me'] });
+      Alert.alert('Success', `${selectedType} uploaded successfully.`);
     } catch {
       Alert.alert('Error', 'Upload failed. Please try again.');
     } finally {

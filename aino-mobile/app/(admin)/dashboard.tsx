@@ -267,7 +267,12 @@ export default function AdminDashboard() {
 
   const dashboardQuery = useQuery<DashboardStats>({
     queryKey: ['admin-dashboard'],
-    queryFn: () => api.get('/admin/dashboard').then((r) => r.data.data),
+    queryFn: async () => {
+      const { data: body } = await api.get('/admin/dashboard');
+      // Backend returns { stats: {...}, recentBookings: [...] } — unwrap stats
+      const payload = body?.data ?? body;
+      return (payload?.stats ?? payload) as DashboardStats;
+    },
     staleTime: 60_000,
   });
 
