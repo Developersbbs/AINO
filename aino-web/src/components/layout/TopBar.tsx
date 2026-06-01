@@ -55,7 +55,7 @@ export function TopBar({ title, onMenuClick }: Readonly<TopBarProps>) {
           <button
             type="button"
             onClick={onMenuClick}
-            className="lg:hidden"
+            className="topbar-menu-btn"
             style={{ padding: 6, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748b', display: 'flex' }}
           >
             <Menu size={20} />

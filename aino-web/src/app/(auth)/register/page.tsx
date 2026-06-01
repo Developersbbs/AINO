@@ -124,11 +124,10 @@ export default function RegisterPage() {
           flex: '0 0 45%',
           background: 'linear-gradient(160deg, #1e3c6e 0%, #0f2040 100%)',
           padding: '48px 56px',
-          display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
         }}
-        className="hidden lg:flex"
+        className="auth-left-panel"
       >
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -177,7 +176,7 @@ export default function RegisterPage() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', background: '#f8fafc', overflowY: 'auto' }}>
         <div style={{ width: '100%', maxWidth: 440 }}>
           {/* Mobile logo */}
-          <div className="lg:hidden" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
+          <div className="auth-mobile-logo" style={{ alignItems: 'center', gap: 10, marginBottom: 32 }}>
             <div style={{ width: 40, height: 40, background: 'white', borderRadius: 10, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/aino-logo.png" alt="AINO" style={{ width: 34, height: 34, objectFit: 'contain' }} />
@@ -185,7 +184,7 @@ export default function RegisterPage() {
             <span style={{ color: '#1e3c6e', fontWeight: 800, fontSize: 18 }}>AINO</span>
           </div>
 
-          <div style={{ background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 4px 32px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
+          <div className="auth-form-card" style={{ background: 'white', borderRadius: 20, boxShadow: '0 4px 32px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
             <div style={{ marginBottom: 28 }}>
               <h2 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', marginBottom: 6, letterSpacing: -0.5 }}>Create account</h2>
               <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6 }}>Join AINO — it only takes a minute</p>

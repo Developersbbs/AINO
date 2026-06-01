@@ -55,6 +55,20 @@ a {
   background: #94a3b8;
 }
 
+/* ── Auth page responsive panels ─────────────────────────────────────────── */
+.auth-left-panel  { display: flex; }
+.auth-mobile-logo { display: none; }
+.auth-form-card   { padding: 40px; }
+
+@media (max-width: 1023px) {
+  .auth-left-panel  { display: none !important; }
+  .auth-mobile-logo { display: flex !important; }
+}
+
+@media (max-width: 480px) {
+  .auth-form-card { padding: 24px !important; }
+}
+
 /* ── Responsive Layout ────────────────────────────────────────────────────── */
 
 .main-content {
@@ -90,8 +104,13 @@ a {
 }
 
 /* ── TopBar responsive ────────────────────────────────────────────────────── */
-.topbar-username { display: block; }
-.topbar-padding  { padding: 0 24px; }
+.topbar-username  { display: block; }
+.topbar-padding   { padding: 0 24px; }
+.topbar-menu-btn  { display: none; }
+
+@media (max-width: 1023px) {
+  .topbar-menu-btn { display: flex !important; }
+}
 
 @media (max-width: 640px) {
   .topbar-username { display: none !important; }

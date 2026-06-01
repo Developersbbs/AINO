@@ -116,7 +116,7 @@ export function Sidebar({ open, onClose }: Readonly<SidebarProps>) {
           </div>
           <button
             onClick={onClose}
-            className="lg:hidden"
+            className="sidebar-close-btn"
             style={{ padding: 6, borderRadius: 8, background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', display: 'flex' }}
           >
             <X size={18} />
@@ -186,6 +186,7 @@ export function Sidebar({ open, onClose }: Readonly<SidebarProps>) {
         .hover-nav-item:hover svg {
           color: white !important;
         }
+        .sidebar-close-btn { display: flex; }
         @media (min-width: 1024px) {
           .sidebar-panel {
             position: relative !important;
@@ -194,6 +195,7 @@ export function Sidebar({ open, onClose }: Readonly<SidebarProps>) {
             height: 100vh !important;
             flex-shrink: 0 !important;
           }
+          .sidebar-close-btn { display: none !important; }
         }
         @media (max-width: 1023px) {
           .sidebar-panel {
