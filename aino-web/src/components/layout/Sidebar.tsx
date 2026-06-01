@@ -78,8 +78,7 @@ export function Sidebar({ open, onClose }: Readonly<SidebarProps>) {
         <button
           type="button"
           aria-label="Close sidebar"
-          className="fixed inset-0 z-30 lg:hidden"
-          style={{ background: 'rgba(0,0,0,0.45)', border: 'none', cursor: 'default', padding: 0 }}
+          style={{ position: 'fixed', inset: 0, zIndex: 30, background: 'rgba(0,0,0,0.45)', border: 'none', cursor: 'default', padding: 0 }}
           onClick={onClose}
         />
       )}

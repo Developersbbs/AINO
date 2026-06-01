@@ -213,7 +213,7 @@ export default function OtpPage() {
           alignItems: 'center',
           gap: 32,
         }}
-        className="hidden lg:flex"
+        className="auth-left-panel"
       >
         {/* Logo */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
@@ -255,7 +255,7 @@ export default function OtpPage() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', background: '#f8fafc' }}>
         <div style={{ width: '100%', maxWidth: 420 }}>
           {/* Mobile logo */}
-          <div className="lg:hidden" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
+          <div className="auth-mobile-logo" style={{ alignItems: 'center', gap: 10, marginBottom: 32 }}>
             <div style={{ width: 40, height: 40, background: 'white', borderRadius: 10, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/aino-logo.png" alt="AINO" style={{ width: 34, height: 34, objectFit: 'contain' }} />
@@ -263,7 +263,7 @@ export default function OtpPage() {
             <span style={{ color: '#1e3c6e', fontWeight: 800, fontSize: 18 }}>AINO</span>
           </div>
 
-          <div style={{ background: 'white', borderRadius: 20, padding: 40, boxShadow: '0 4px 32px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
+          <div className="auth-form-card" style={{ background: 'white', borderRadius: 20, boxShadow: '0 4px 32px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
             {/* Header */}
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
               <div style={{ width: 56, height: 56, background: '#eff6ff', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
@@ -277,12 +277,13 @@ export default function OtpPage() {
             </div>
 
             {/* OTP inputs */}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 28 }}>
+            <div className="otp-container" style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 28 }}>
               {OTP_SLOTS.map((slot, index) => {
                 const digit = otp[index]
                 return (
                 <input
                   key={slot}
+                  className="otp-input"
                   ref={(el) => { inputs.current[index] = el }}
                   type="text"
                   inputMode="numeric"

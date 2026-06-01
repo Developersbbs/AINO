@@ -66,7 +66,9 @@ a {
 }
 
 @media (max-width: 480px) {
-  .auth-form-card { padding: 24px !important; }
+  .auth-form-card   { padding: 24px !important; }
+  .otp-container    { gap: 6px !important; }
+  .otp-input        { width: 40px !important; height: 48px !important; font-size: 18px !important; }
 }
 
 /* ── Responsive Layout ────────────────────────────────────────────────────── */
