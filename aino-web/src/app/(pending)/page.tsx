@@ -27,7 +27,7 @@ export default function PendingPage() {
 
   if (!user) return null
 
-  let roleLabel = user.role
+  let roleLabel: string = user.role
   if (user.role === 'agent') roleLabel = 'Agent'
   else if (user.role === 'owner') roleLabel = 'Owner'
 
