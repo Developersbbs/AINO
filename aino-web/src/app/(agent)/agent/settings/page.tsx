@@ -66,13 +66,16 @@ export default function AgentSettingsPage() {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('docType', file.name)
-      return api.post('/auth/me/documents', formData)
+      return api.post('/auth/me/documents', formData, {
+        headers: { 'Content-Type': undefined },
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['me'] })
     },
-    onError: () => {
-      toast.error('Failed to upload one or more documents')
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Upload failed'
+      toast.error(`Upload error: ${msg}`)
     },
   })
 
