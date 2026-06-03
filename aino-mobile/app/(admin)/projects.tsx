@@ -309,6 +309,7 @@ export default function AdminProjectsScreen() {
   const [pendingStatus, setPendingStatus] = useState<UnitStatus>('Available');
   const [reason, setReason] = useState('');
   const [ownerPickerVisible, setOwnerPickerVisible] = useState(false);
+  const [ownerPickerMode, setOwnerPickerMode] = useState<'create' | 'edit'>('create');
   const [editUnit, setEditUnit] = useState<Unit | null>(null);
   const [editUnitForm, setEditUnitForm] = useState({ sq_ft: '', price: '', facing: '', road_width: '' });
 
@@ -439,15 +440,14 @@ export default function AdminProjectsScreen() {
   const unpublishMutation = useMutation({
     mutationFn: (projectId: string) => api.post(`/projects/${projectId}/unpublish`),
     onSuccess: () => {
-      queryClient.setQueryData<ProjectDetail>(['admin-project', selectedId], (old) =>
-        old ? { ...old, is_published: false } : old,
-      );
-      queryClient.setQueryData<Project[]>(['admin-projects'], (old) =>
-        old ? old.map((p) => (p.id === selectedId ? { ...p, is_published: false } : p)) : old,
-      );
+      queryClient.invalidateQueries({ queryKey: ['admin-project', selectedId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
       Alert.alert('Unpublished', 'Project is now hidden from agents and owners.');
     },
-    onError: (err: any) => Alert.alert('Error', err.response?.data?.message ?? 'Could not unpublish project.'),
+    onError: (err: any) => {
+      console.error('[unpublish]', err?.response?.status, err?.response?.data ?? err?.message);
+      Alert.alert('Error', err?.response?.data?.message ?? err?.message ?? 'Could not unpublish project.');
+    },
   });
 
   const addUnitMutation = useMutation({
@@ -503,6 +503,7 @@ export default function AdminProjectsScreen() {
         type: data.project_type,
         location: data.location,
         reraNumber: data.rera_number || null,
+        ...(data.owner_id && { ownerId: data.owner_id }),
         ...(Object.keys(cfg).length > 0 && { configAttributes: cfg }),
       });
     },
@@ -552,13 +553,37 @@ export default function AdminProjectsScreen() {
     const price = Number(unitForm.price);
     if (!unitForm.sq_ft || isNaN(sqFt) || sqFt <= 0) return Alert.alert('Invalid', 'Enter a valid plot size (sq ft).');
     if (!unitForm.price || isNaN(price) || price <= 0) return Alert.alert('Invalid', 'Enter a valid total price.');
+    const ratePerSqft = Number(unitForm.rate_per_sqft);
+    if (!unitForm.rate_per_sqft || isNaN(ratePerSqft) || ratePerSqft <= 0) return Alert.alert('Required', 'Enter a valid rate per sq.ft.');
+    const bookingAmount = Number(unitForm.booking_amount);
+    if (!unitForm.booking_amount || isNaN(bookingAmount) || bookingAmount <= 0) return Alert.alert('Required', 'Enter a valid booking amount.');
     addUnitMutation.mutate(unitForm);
+  };
+
+  const handleUnpublish = () => {
+    if (!selectedId) return;
+    if (Platform.OS === 'web') {
+      // eslint-disable-next-line no-alert
+      if (window.confirm('Unpublish project? It will be hidden from agents and owners.')) {
+        unpublishMutation.mutate(selectedId);
+      }
+    } else {
+      Alert.alert(
+        'Unpublish Project',
+        'This will hide the project from agents and owners. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Unpublish', style: 'destructive', onPress: () => unpublishMutation.mutate(selectedId) },
+        ],
+      );
+    }
   };
 
   const handleCreate = () => {
     if (!form.project_name.trim()) return Alert.alert('Required', 'Project name is required.');
     if (!form.project_type.trim()) return Alert.alert('Required', 'Project type is required.');
     if (!form.location.trim()) return Alert.alert('Required', 'Location is required.');
+    if (!form.block_phase.trim()) return Alert.alert('Required', 'Block / Phase is required.');
     createMutation.mutate(form);
   };
 
@@ -566,6 +591,7 @@ export default function AdminProjectsScreen() {
     if (!editProjectForm.project_name.trim()) return Alert.alert('Required', 'Project name is required.');
     if (!editProjectForm.project_type.trim()) return Alert.alert('Required', 'Project type is required.');
     if (!editProjectForm.location.trim()) return Alert.alert('Required', 'Location is required.');
+    if (!editProjectForm.block_phase.trim()) return Alert.alert('Required', 'Block / Phase is required.');
     editProjectMutation.mutate(editProjectForm);
   };
 
@@ -684,7 +710,7 @@ export default function AdminProjectsScreen() {
                     </Text>
                   </View>
                 )}
-                <FormField label="RATE PER SQ.FT (₹)" value={unitForm.rate_per_sqft} onChangeText={(v) => setUnitField('rate_per_sqft', v)} placeholder="e.g. 4500" keyboardType="numeric" optional />
+                <FormField label="RATE PER SQ.FT (₹)" value={unitForm.rate_per_sqft} onChangeText={(v) => setUnitField('rate_per_sqft', v)} placeholder="e.g. 4500" keyboardType="numeric" />
               </View>
             )}
 
@@ -715,7 +741,7 @@ export default function AdminProjectsScreen() {
               <View style={f.sectionBody}>
                 <View style={f.row}>
                   <View style={{ flex: 1 }}>
-                    <FormField label="BOOKING AMOUNT (₹)" value={unitForm.booking_amount} onChangeText={(v) => setUnitField('booking_amount', v)} placeholder="e.g. 100000" keyboardType="numeric" optional />
+                    <FormField label="BOOKING AMOUNT (₹)" value={unitForm.booking_amount} onChangeText={(v) => setUnitField('booking_amount', v)} placeholder="e.g. 100000" keyboardType="numeric" />
                   </View>
                   <View style={{ width: 12 }} />
                   <View style={{ flex: 1 }}>
@@ -826,17 +852,10 @@ export default function AdminProjectsScreen() {
             <SectionHeader title="APPROVAL DETAILS" isOpen={createSections.has('approval')} onToggle={() => toggleCreateSection('approval')} hint="Block, Authority, LP Number" />
             {createSections.has('approval') && (
               <View style={f.sectionBody}>
-                <FormField label="BLOCK / PHASE" value={form.block_phase} onChangeText={(v) => setForm((p) => ({ ...p, block_phase: v }))} placeholder="e.g. Phase 1, Block A" optional />
+                <FormField label="BLOCK / PHASE" value={form.block_phase} onChangeText={(v) => setForm((p) => ({ ...p, block_phase: v }))} placeholder="e.g. Phase 1, Block A" />
                 <FormField label="APPROVAL AUTHORITY" value={form.approval_authority} onChangeText={(v) => setForm((p) => ({ ...p, approval_authority: v }))} placeholder="e.g. HMDA, DTCP, Panchayat" optional />
-                <View style={f.row}>
-                  <View style={{ flex: 1 }}>
-                    <FormField label="APPROVAL NUMBER" value={form.approval_number} onChangeText={(v) => setForm((p) => ({ ...p, approval_number: v }))} placeholder="e.g. LP/TS/001/2024" optional />
-                  </View>
-                  <View style={{ width: 12 }} />
-                  <View style={{ flex: 1 }}>
-                    <FormField label="APPROVAL TYPE" value={form.approval_type} onChangeText={(v) => setForm((p) => ({ ...p, approval_type: v }))} placeholder="e.g. LP, LRS, NA" optional />
-                  </View>
-                </View>
+                <FormField label="APPROVAL NUMBER" value={form.approval_number} onChangeText={(v) => setForm((p) => ({ ...p, approval_number: v }))} placeholder="e.g. LP/TS/001/2024" optional />
+                <FormField label="APPROVAL TYPE" value={form.approval_type} onChangeText={(v) => setForm((p) => ({ ...p, approval_type: v }))} placeholder="e.g. LP, LRS, NA" optional />
               </View>
             )}
 
@@ -897,15 +916,22 @@ export default function AdminProjectsScreen() {
                   style={{ maxHeight: 320 }}
                   renderItem={({ item }) => (
                     <TouchableOpacity
-                      style={[s.ownerOption, form.owner_id === item.id && s.ownerOptionSelected]}
-                      onPress={() => { setForm((f) => ({ ...f, owner_id: item.id })); setOwnerPickerVisible(false); }}
+                      style={[s.ownerOption, (ownerPickerMode === 'create' ? form.owner_id : editProjectForm.owner_id) === item.id && s.ownerOptionSelected]}
+                      onPress={() => {
+                        if (ownerPickerMode === 'edit') {
+                          setEditProjectForm((p) => ({ ...p, owner_id: item.id }));
+                        } else {
+                          setForm((f) => ({ ...f, owner_id: item.id }));
+                        }
+                        setOwnerPickerVisible(false);
+                      }}
                       activeOpacity={0.7}
                     >
                       <View style={{ flex: 1 }}>
-                        <Text style={[s.ownerName, form.owner_id === item.id && { color: GREEN }]}>{item.name}</Text>
+                        <Text style={[s.ownerName, (ownerPickerMode === 'create' ? form.owner_id : editProjectForm.owner_id) === item.id && { color: GREEN }]}>{item.name}</Text>
                         <Text style={s.ownerPhone}>{item.phone}</Text>
                       </View>
-                      {form.owner_id === item.id && <Feather name="check" size={16} color={GREEN} />}
+                      {(ownerPickerMode === 'create' ? form.owner_id : editProjectForm.owner_id) === item.id && <Feather name="check" size={16} color={GREEN} />}
                     </TouchableOpacity>
                   )}
                 />
@@ -966,17 +992,38 @@ export default function AdminProjectsScreen() {
             <SectionHeader title="APPROVAL DETAILS" isOpen={editProjectSections.has('approval')} onToggle={() => setEditProjectSections((prev) => { const n = new Set(prev); n.has('approval') ? n.delete('approval') : n.add('approval'); return n; })} hint="Block, Authority, LP Number" />
             {editProjectSections.has('approval') && (
               <View style={f.sectionBody}>
-                <FormField label="BLOCK / PHASE" value={ep.block_phase} onChangeText={(v) => setEp({ block_phase: v })} placeholder="e.g. Phase 1, Block A" optional />
+                <FormField label="BLOCK / PHASE" value={ep.block_phase} onChangeText={(v) => setEp({ block_phase: v })} placeholder="e.g. Phase 1, Block A" />
                 <FormField label="APPROVAL AUTHORITY" value={ep.approval_authority} onChangeText={(v) => setEp({ approval_authority: v })} placeholder="e.g. HMDA, DTCP, Panchayat" optional />
-                <View style={f.row}>
-                  <View style={{ flex: 1 }}>
-                    <FormField label="APPROVAL NUMBER" value={ep.approval_number} onChangeText={(v) => setEp({ approval_number: v })} placeholder="e.g. LP/TS/001/2024" optional />
-                  </View>
-                  <View style={{ width: 12 }} />
-                  <View style={{ flex: 1 }}>
-                    <FormField label="APPROVAL TYPE" value={ep.approval_type} onChangeText={(v) => setEp({ approval_type: v })} placeholder="e.g. LP, LRS, NA" optional />
-                  </View>
-                </View>
+                <FormField label="APPROVAL NUMBER" value={ep.approval_number} onChangeText={(v) => setEp({ approval_number: v })} placeholder="e.g. LP/TS/001/2024" optional />
+                <FormField label="APPROVAL TYPE" value={ep.approval_type} onChangeText={(v) => setEp({ approval_type: v })} placeholder="e.g. LP, LRS, NA" optional />
+              </View>
+            )}
+
+            {/* Owner Assignment */}
+            <SectionHeader title="OWNER ASSIGNMENT" isOpen={editProjectSections.has('owner')} onToggle={() => setEditProjectSections((prev) => { const n = new Set(prev); n.has('owner') ? n.delete('owner') : n.add('owner'); return n; })} hint="Change or assign owner" />
+            {editProjectSections.has('owner') && (
+              <View style={f.sectionBody}>
+                <Text style={f.fieldLabel}>OWNER <Text style={f.optional}>(optional)</Text></Text>
+                <TouchableOpacity
+                  style={[f.textInput, f.pickerRow]}
+                  onPress={() => { setOwnerPickerMode('edit'); setOwnerPickerVisible(true); }}
+                  activeOpacity={0.7}
+                >
+                  {(() => {
+                    const selectedEditOwner = ownersQuery.data?.find((o) => o.id === ep.owner_id) ?? null;
+                    return selectedEditOwner ? (
+                      <View style={{ flex: 1 }}>
+                        <Text style={f.pickerValue}>{selectedEditOwner.name}</Text>
+                        <Text style={f.pickerSub}>{selectedEditOwner.phone}</Text>
+                      </View>
+                    ) : (
+                      <Text style={f.pickerPlaceholder}>
+                        {ownersQuery.isLoading ? 'Loading owners…' : 'Select an owner'}
+                      </Text>
+                    );
+                  })()}
+                  <Feather name="chevron-down" size={18} color="#94a3b8" />
+                </TouchableOpacity>
               </View>
             )}
 
@@ -1061,16 +1108,7 @@ export default function AdminProjectsScreen() {
         {project.is_published ? (
           <TouchableOpacity
             style={[s.unpublishBanner, unpublishMutation.isPending && s.btnDisabled]}
-            onPress={() =>
-              Alert.alert(
-                'Unpublish Project',
-                'This will hide the project from agents and owners. Continue?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Unpublish', style: 'destructive', onPress: () => selectedId && unpublishMutation.mutate(selectedId) },
-                ],
-              )
-            }
+            onPress={handleUnpublish}
             disabled={unpublishMutation.isPending}
             activeOpacity={0.85}
           >
@@ -1154,7 +1192,7 @@ export default function AdminProjectsScreen() {
                 project_type: p.project_type,
                 location: p.location,
                 rera_number: p.rera_number ?? '',
-                owner_id: '',
+                owner_id: p.owner?.id ?? '',
                 block_phase: String(cfg.block ?? ''),
                 approval_authority: String(cfg.approvalAuthority ?? ''),
                 approval_number: String(cfg.approvalNumber ?? ''),

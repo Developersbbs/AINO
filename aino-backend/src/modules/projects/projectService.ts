@@ -76,10 +76,12 @@ export const updateProject = (id: string, data: {
   location?: string;
   rera_number?: string;
   config_attributes?: unknown;
+  owner_id?: string;
 }) => {
   return prisma.project.update({
     where: { id },
     data: { ...data, config_attributes: data.config_attributes as any },
+    include: { owner: { select: { id: true, name: true, phone: true } } },
   });
 };
 

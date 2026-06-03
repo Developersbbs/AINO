@@ -46,13 +46,14 @@ export const getProject = async (req: Request, res: Response) => {
 
 export const updateProject = async (req: AuthRequest, res: Response) => {
   try {
-    const { name, type, location, reraNumber, configAttributes } = req.body;
+    const { name, type, location, reraNumber, configAttributes, ownerId } = req.body;
     const project = await projectService.updateProject(String(req.params.id), {
       ...(name && { project_name: name }),
       ...(type && { project_type: type }),
       ...(location && { location }),
       ...(reraNumber !== undefined && { rera_number: reraNumber }),
       ...(configAttributes !== undefined && { config_attributes: configAttributes }),
+      ...(ownerId && { owner_id: ownerId }),
     });
     return apiResponse(res, 200, project, 'Project updated');
   } catch (error: any) {
