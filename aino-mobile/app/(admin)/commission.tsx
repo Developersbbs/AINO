@@ -159,13 +159,12 @@ export default function CommissionConfigScreen() {
   const [projectAmounts, setProjectAmounts] = useState<Record<string, string>>({});
   const [globalRateDraft, setGlobalRateDraft] = useState<number | null>(null);
 
-  const { data, isLoading, isError, refetch } = useQuery<CommissionConfig>({
+  const { data, isLoading, isError, error: queryError, refetch } = useQuery<CommissionConfig>({
     queryKey: ['commission-config'],
     queryFn: async () => {
       const { data: body } = await api.get('/admin/commission-config');
-      // Handle both raw response and apiResponse-wrapped { success, data } envelope
       const config = body?.data ?? body;
-      if (!config || typeof config.globalRate !== 'number') throw new Error('invalid');
+      if (!config || typeof config.globalRate !== 'number') throw new Error(`invalid response: ${JSON.stringify(body)}`);
       return config as CommissionConfig;
     },
     retry: false,
@@ -245,7 +244,7 @@ export default function CommissionConfigScreen() {
         const amtStr = projectAmounts[p.id];
         if (rate !== undefined || amtStr !== undefined) {
           const commissionRate = rate ?? p.commissionRate ?? globalRate;
-          const bookingAmount = amtStr !== undefined ? Number.parseFloat(amtStr) || undefined : undefined;
+          const bookingAmount = amtStr === undefined ? undefined : Number.parseFloat(amtStr) || undefined;
           tasks.push(api.patch(`/admin/commission-config/projects/${p.id}`, { commissionRate, bookingAmount }));
         }
       });
@@ -281,6 +280,11 @@ export default function CommissionConfigScreen() {
         <View style={st.center}>
           <Feather name="alert-circle" size={40} color="#cbd5e1" />
           <Text style={st.errorText}>Failed to load commission config</Text>
+          {queryError instanceof Error && (
+            <Text style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginHorizontal: 24 }}>
+              {queryError.message}
+            </Text>
+          )}
           <TouchableOpacity style={st.retryBtn} onPress={() => refetch()}>
             <Text style={st.retryText}>Retry</Text>
           </TouchableOpacity>
@@ -445,7 +449,7 @@ export default function CommissionConfigScreen() {
                       <Text style={st.agentSales}>{agent.sales} sale{agent.sales === 1 ? '' : 's'}</Text>
                     </View>
                     <View style={st.agentRateWrap}>
-                      <Text style={[st.agentRate, agent.commissionRate !== null ? st.agentRateOverride : null]}>
+                      <Text style={[st.agentRate, agent.commissionRate === null ? null : st.agentRateOverride]}>
                         {effectiveRate.toFixed(1)}%
                       </Text>
                       {agent.commissionRate !== null && (
