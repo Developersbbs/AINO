@@ -10,16 +10,20 @@ import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
 
-// In development, allow all origins. In production, restrict to CORS_ORIGINS env list.
-const corsOrigins: string[] | boolean =
-  process.env.NODE_ENV !== 'production'
-    ? true
-    : process.env.CORS_ORIGINS
-      ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
-      : true;
+const allowedOrigins = new Set<string>(
+  process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()) : [],
+);
 
 const corsOptions: cors.CorsOptions = {
-  origin: corsOrigins,
+  origin: (origin, callback) => {
+    // No origin = same-origin or non-browser client (mobile native, Postman) — allow
+    if (!origin) return callback(null, true);
+    // Always allow localhost / 127.0.0.1 for local development
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
+    // Allow if explicitly listed, or if no list was configured (open)
+    if (allowedOrigins.size === 0 || allowedOrigins.has(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
