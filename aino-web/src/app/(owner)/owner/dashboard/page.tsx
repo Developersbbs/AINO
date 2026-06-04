@@ -32,7 +32,19 @@ export default function OwnerDashboard() {
 
   const { data: projects = [], isLoading } = useQuery<OwnerProject[]>({
     queryKey: ['owner-projects'],
-    queryFn: () => api.get('/owner/projects').then((r) => (Array.isArray(r.data) ? r.data : [])),
+    queryFn: () =>
+      api.get('/owner/projects').then((r) => {
+        const raw: any[] = Array.isArray(r.data) ? r.data : []
+        return raw.map((p) => ({
+          id: p.id,
+          name: p.project_name ?? p.name ?? '',
+          location: p.location ?? '',
+          status: p.is_published ? 'published' : 'draft',
+          totalUnits: p.unitSummary?.total ?? p.totalUnits ?? 0,
+          availableUnits: p.unitSummary?.available ?? p.availableUnits ?? 0,
+          soldUnits: p.unitSummary?.sold ?? p.soldUnits ?? 0,
+        }))
+      }),
   })
 
   const totalUnits = projects.reduce((s, p) => s + (p.totalUnits ?? 0), 0)

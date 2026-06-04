@@ -37,7 +37,20 @@ export default function OwnerProjectDetailPage() {
 
   const { data: project, isLoading: projectLoading } = useQuery<ProjectDetail>({
     queryKey: ['owner-project', id],
-    queryFn: () => api.get(`/owner/projects/${id}`).then((r) => r.data),
+    queryFn: () => api.get(`/owner/projects/${id}`).then((r): ProjectDetail => {
+      const p = r.data ?? {}
+      return {
+        id: p.id ?? '',
+        name: p.project_name ?? p.name ?? '',
+        location: p.location ?? '',
+        status: p.is_published ? 'published' : 'draft',
+        totalUnits: p.units?.length ?? p.totalUnits ?? 0,
+        availableUnits: p.units?.filter((u: any) => u.status === 'Available').length ?? p.availableUnits ?? 0,
+        description: p.description,
+        priceMin: p.priceMin,
+        priceMax: p.priceMax,
+      }
+    }),
   })
 
   const { data: units = [], isLoading: unitsLoading } = useQuery<Unit[]>({
