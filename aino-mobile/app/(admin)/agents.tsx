@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, Alert, Modal, Pressable, TextInput,
+  KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -102,64 +103,71 @@ function CreateSheet({
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={s.overlay}>
-        <Pressable style={s.backdrop} onPress={onClose} />
-        <View style={[s.sheet, { paddingBottom: insets.bottom + 24 }]}>
-          <View style={s.sheetHandle} />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={s.overlay}>
+          <Pressable style={s.backdrop} onPress={onClose} />
+          <View style={[s.sheet, { paddingBottom: insets.bottom + 24 }]}>
+            <View style={s.sheetHandle} />
 
-          <View style={s.createHeader}>
-            <View style={[s.createIconWrap, { backgroundColor: color + '14' }]}>
-              <Feather name={TAB_CONFIG[tab].icon} size={20} color={color} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.createTitle}>
-                Add {noun.charAt(0).toUpperCase() + noun.slice(1)}
-              </Text>
-              <Text style={s.createSub}>Account is immediately active</Text>
-            </View>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Feather name="x" size={20} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-
-          <CreateField
-            icon="user" label="FULL NAME" placeholder="John Doe"
-            value={name} onChangeText={setName}
-            focused={focused === 'name'} onFocus={() => setFocused('name')} onBlur={() => setFocused(null)}
-            autoFocus
-          />
-          <CreateField
-            icon="phone" label="PHONE (+91)" placeholder="XXXXX XXXXX"
-            value={phone} onChangeText={(v) => setPhone(v.replace(/\D/g, '').slice(0, 10))}
-            keyboardType="phone-pad"
-            focused={focused === 'phone'} onFocus={() => setFocused('phone')} onBlur={() => setFocused(null)}
-          />
-          <CreateField
-            icon="mail" label="EMAIL (optional)" placeholder="john@example.com"
-            value={email} onChangeText={setEmail}
-            keyboardType="email-address" autoCapitalize="none"
-            focused={focused === 'email'} onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
-          />
-
-          <TouchableOpacity
-            style={[s.createBtn, { backgroundColor: color }, (!canSubmit || loading) && s.btnDisabled]}
-            onPress={() => onSubmit({ name: name.trim(), phone: '+91' + phone.trim(), email: email.trim() })}
-            disabled={!canSubmit || loading}
-            activeOpacity={0.85}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Feather name="user-plus" size={16} color="#fff" />
-                <Text style={s.createBtnText}>
-                  Create {noun.charAt(0).toUpperCase() + noun.slice(1)}
+            <View style={s.createHeader}>
+              <View style={[s.createIconWrap, { backgroundColor: color + '14' }]}>
+                <Feather name={TAB_CONFIG[tab].icon} size={20} color={color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.createTitle}>
+                  Add {noun.charAt(0).toUpperCase() + noun.slice(1)}
                 </Text>
-              </>
-            )}
-          </TouchableOpacity>
+                <Text style={s.createSub}>Account is immediately active</Text>
+              </View>
+              <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Feather name="x" size={20} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <CreateField
+                icon="user" label="FULL NAME" placeholder="John Doe"
+                value={name} onChangeText={setName}
+                focused={focused === 'name'} onFocus={() => setFocused('name')} onBlur={() => setFocused(null)}
+                autoFocus
+              />
+              <CreateField
+                icon="phone" label="PHONE (+91)" placeholder="XXXXX XXXXX"
+                value={phone} onChangeText={(v) => setPhone(v.replace(/\D/g, '').slice(0, 10))}
+                keyboardType="phone-pad"
+                focused={focused === 'phone'} onFocus={() => setFocused('phone')} onBlur={() => setFocused(null)}
+              />
+              <CreateField
+                icon="mail" label="EMAIL" placeholder="john@example.com"
+                value={email} onChangeText={setEmail}
+                keyboardType="email-address" autoCapitalize="none"
+                focused={focused === 'email'} onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
+              />
+
+              <TouchableOpacity
+                style={[s.createBtn, { backgroundColor: color }, (!canSubmit || loading) && s.btnDisabled]}
+                onPress={() => onSubmit({ name: name.trim(), phone: '+91' + phone.trim(), email: email.trim() })}
+                disabled={!canSubmit || loading}
+                activeOpacity={0.85}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Feather name="user-plus" size={16} color="#fff" />
+                    <Text style={s.createBtnText}>
+                      Create {noun.charAt(0).toUpperCase() + noun.slice(1)}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

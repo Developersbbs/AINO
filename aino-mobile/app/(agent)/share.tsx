@@ -14,6 +14,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -242,7 +243,12 @@ function ProjectDetailContent({ project }: Readonly<{ project: ProjectDetail }>)
                 />
               </View>
               <Text style={s.docName} numberOfLines={1}>{doc.name}</Text>
-              <Text style={s.docView}>View</Text>
+              <TouchableOpacity
+                onPress={() => Linking.openURL(doc.url).catch(() => Alert.alert('Error', 'Could not open document.'))}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={s.docView}>View</Text>
+              </TouchableOpacity>
             </View>
           ))}
         </View>

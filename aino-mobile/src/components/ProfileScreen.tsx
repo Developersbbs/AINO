@@ -143,12 +143,16 @@ export default function ProfileScreen() {
     onError: () => Alert.alert('Error', 'Could not delete document.'),
   });
 
+  const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+
   const updateMeMut = useMutation({
-    mutationFn: ({ name, email }: { name: string; email: string }) =>
-      api.patch('/auth/me', {
+    mutationFn: ({ name, email }: { name: string; email: string }) => {
+      if (!isValidEmail(email)) return Promise.reject(new Error('Enter a valid email address.'));
+      return api.patch('/auth/me', {
         ...(name.trim() && { name: name.trim() }),
-        email: email.trim() || null,
-      }),
+        email: email.trim(),
+      });
+    },
     onSuccess: async (res) => {
       const updated = res.data.user as { name: string };
       await updateUser({ ...user!, name: updated.name });
@@ -156,7 +160,7 @@ export default function ProfileScreen() {
       setEditMode(false);
     },
     onError: (err: any) => {
-      Alert.alert('Error', err.response?.data?.message ?? 'Could not save changes.');
+      Alert.alert('Error', err.response?.data?.message ?? err.message ?? 'Could not save changes.');
     },
   });
 
@@ -201,12 +205,12 @@ export default function ProfileScreen() {
       form.append('docType', selectedType);
 
       await api.post('/auth/me/documents', form, {
-        headers: Platform.OS === 'web' ? {} : { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': undefined },
       });
       qc.invalidateQueries({ queryKey: ['profile-me'] });
       Alert.alert('Success', `${selectedType} uploaded successfully.`);
-    } catch {
-      Alert.alert('Error', 'Upload failed. Please try again.');
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.message ?? 'Upload failed. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -351,7 +355,7 @@ export default function ProfileScreen() {
                 </View>
                 <View style={s.separator} />
                 <View style={s.editFieldWrap}>
-                  <Text style={s.editFieldLabel}>EMAIL (OPTIONAL)</Text>
+                  <Text style={s.editFieldLabel}>EMAIL</Text>
                   <View style={s.editFieldRow}>
                     <View style={s.editFieldIcon}>
                       <Feather name="mail" size={15} color="#64748b" />
@@ -393,10 +397,10 @@ export default function ProfileScreen() {
                     style={[
                       s.editSaveBtn,
                       { backgroundColor: roleColor },
-                      (updateMeMut.isPending || !editName.trim()) && { opacity: 0.5 },
+                      (updateMeMut.isPending || !editName.trim() || !editEmail.trim()) && { opacity: 0.5 },
                     ]}
                     onPress={() => updateMeMut.mutate({ name: editName, email: editEmail })}
-                    disabled={updateMeMut.isPending || !editName.trim()}
+                    disabled={updateMeMut.isPending || !editName.trim() || !editEmail.trim()}
                     activeOpacity={0.85}
                   >
                     {updateMeMut.isPending ? (

@@ -53,13 +53,12 @@ export default function AdminSettingsPage() {
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    const payload: { name?: string; email?: string } = {}
-    if (name.trim()) payload.name = name.trim()
-    if (email.trim()) payload.email = email.trim()
-    if (!payload.name && !payload.email) {
-      toast.error('Provide name or email to update')
-      return
+    if (!name.trim()) { toast.error('Full name is required'); return }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      toast.error('Enter a valid email address'); return
     }
+    const payload: { name?: string; email?: string } = { name: name.trim() }
+    if (email.trim()) payload.email = email.trim()
     updateMutation.mutate(payload)
   }
 
@@ -130,7 +129,7 @@ export default function AdminSettingsPage() {
             placeholder="your@email.com"
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
-            <Button type="submit" loading={updateMutation.isPending}>
+            <Button type="submit" loading={updateMutation.isPending} disabled={isLoading || updateMutation.isPending}>
               Save Changes
             </Button>
           </div>
