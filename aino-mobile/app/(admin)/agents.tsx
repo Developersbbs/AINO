@@ -2,11 +2,13 @@ import { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, Alert, Modal, Pressable, TextInput,
-  KeyboardAvoidingView, Platform, ScrollView, Linking,
+  KeyboardAvoidingView, Platform, ScrollView, Image,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import WebView from 'react-native-webview';
 import { shadow } from '@/src/lib/shadow';
 import api from '@/src/api/client';
 
@@ -206,15 +208,71 @@ function CreateField({
   );
 }
 
-// ─── Detail bottom sheet ─────────────────────────────────────────────────────
+// ─── In-app document viewer ───────────────────────────────────────────────────
 
-function DocItem({ doc }: Readonly<{ doc: UserDoc; index: number }>) {
-  const openDoc = () => {
-    Linking.openURL(doc.url).catch(() => Alert.alert('Error', 'Could not open document.'));
-  };
+function DocViewer({ doc, onClose }: Readonly<{ doc: UserDoc; onClose: () => void }>) {
+  const [loading, setLoading] = useState(true);
+  const [errored, setErrored] = useState(false);
+  const insets = useSafeAreaInsets();
+  const isImage = doc.type === 'image';
 
   return (
-    <TouchableOpacity style={s.docRow} onPress={openDoc} activeOpacity={0.7}>
+    <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <View style={[dv.root, { paddingTop: insets.top }]}>
+        {/* Header */}
+        <View style={dv.header}>
+          <TouchableOpacity onPress={onClose} style={dv.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Feather name="arrow-left" size={20} color="#fff" />
+          </TouchableOpacity>
+          <Text style={dv.title} numberOfLines={1}>{doc.name}</Text>
+          <View style={[dv.badge, doc.type === 'pdf' ? dv.badgePdf : dv.badgeImg]}>
+            <Text style={dv.badgeText}>{doc.type.toUpperCase()}</Text>
+          </View>
+        </View>
+
+        {/* Viewer */}
+        {isImage ? (
+          <Image
+            source={{ uri: doc.url }}
+            style={dv.image}
+            resizeMode="contain"
+            onLoad={() => setLoading(false)}
+            onError={() => { setLoading(false); setErrored(true); }}
+          />
+        ) : (
+          <WebView
+            source={{ uri: doc.url }}
+            style={dv.webview}
+            onLoad={() => setLoading(false)}
+            onError={() => { setLoading(false); setErrored(true); }}
+            startInLoadingState={false}
+            scalesPageToFit
+          />
+        )}
+
+        {loading && !errored && (
+          <View style={dv.overlay}>
+            <ActivityIndicator size="large" color="#fff" />
+            <Text style={dv.loadingText}>Loading…</Text>
+          </View>
+        )}
+        {errored && (
+          <View style={dv.overlay}>
+            <Feather name="alert-circle" size={40} color="#ef4444" />
+            <Text style={dv.errorText}>Could not load document</Text>
+          </View>
+        )}
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Detail bottom sheet ─────────────────────────────────────────────────────
+
+function DocItem({ doc, onView }: Readonly<{ doc: UserDoc; index: number; onView: () => void }>) {
+  return (
+    <TouchableOpacity style={s.docRow} onPress={onView} activeOpacity={0.7}>
       <View style={s.docIconWrap}>
         <Feather name={doc.type === 'pdf' ? 'file-text' : 'image'} size={16} color={GREEN} />
       </View>
@@ -228,7 +286,7 @@ function DocItem({ doc }: Readonly<{ doc: UserDoc; index: number }>) {
         <View style={[s.docTypeBadge, doc.type === 'pdf' ? s.docTypePdf : s.docTypeImg]}>
           <Text style={s.docTypeText}>{doc.type.toUpperCase()}</Text>
         </View>
-        <Feather name="external-link" size={13} color="#94a3b8" />
+        <Feather name="eye" size={14} color="#94a3b8" />
       </View>
     </TouchableOpacity>
   );
@@ -238,14 +296,15 @@ function DetailSheet({
   person, tab, onClose,
   onApprove, onDeactivate, approving, deactivating,
   onPersonUpdated,
-}: {
+}: Readonly<{
   person: Person; tab: Tab; onClose: () => void;
   onApprove: () => void; onDeactivate: () => void;
   approving: boolean; deactivating: boolean;
   onPersonUpdated: (p: Person) => void;
-}) {
+}>) {
   const insets = useSafeAreaInsets();
   const { color, label } = TAB_CONFIG[tab];
+  const [viewingDoc, setViewingDoc] = useState<UserDoc | null>(null);
   const accentColor = person.is_approved ? color : AMBER;
   const docs = person.documents ?? [];
 
@@ -369,9 +428,20 @@ function DetailSheet({
                 {docs.length === 0 ? (
                   <Text style={s.docsEmpty}>No documents uploaded</Text>
                 ) : (
-                  docs.map((doc, i) => <DocItem key={`${doc.uploadedAt}-${doc.name}`} doc={doc} index={i} />)
+                  docs.map((doc, i) => (
+                    <DocItem
+                      key={`${doc.uploadedAt}-${doc.name}`}
+                      doc={doc}
+                      index={i}
+                      onView={() => setViewingDoc(doc)}
+                    />
+                  ))
                 )}
               </View>
+
+              {viewingDoc !== null && (
+                <DocViewer doc={viewingDoc} onClose={() => setViewingDoc(null)} />
+              )}
 
               {/* Actions */}
               <View style={s.sheetActions}>
@@ -958,4 +1028,34 @@ const s = StyleSheet.create({
     fontWeight: '600',
     paddingHorizontal: 4,
   },
+});
+
+// ─── DocViewer styles ─────────────────────────────────────────────────────────
+
+const dv = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#000' },
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: '#111',
+  },
+  closeBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  title: { flex: 1, fontSize: 15, fontWeight: '700', color: '#fff' },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  badgePdf: { backgroundColor: '#fee2e2' },
+  badgeImg: { backgroundColor: '#e0f2fe' },
+  badgeText: { fontSize: 10, fontWeight: '800', color: '#475569' },
+  image: { flex: 1, width: '100%' },
+  webview: { flex: 1, backgroundColor: '#000' },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.75)', gap: 12,
+  },
+  loadingText: { color: '#fff', fontSize: 14 },
+  errorText: { color: '#ef4444', fontSize: 14, fontWeight: '600' },
 });
