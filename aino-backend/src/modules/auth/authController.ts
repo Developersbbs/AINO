@@ -16,7 +16,7 @@ export const sendOtp = async (req: Request, res: Response) => {
     if (process.env.NODE_ENV === 'development') response.devOtp = otp;
 
     return res.status(200).json(response);
-  } catch (error) {
+  } catch (error: any) {
     return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
@@ -68,7 +68,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
         isApproved: user.is_approved,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
@@ -89,7 +89,7 @@ export const logout = async (req: AuthRequest, res: Response) => {
   try {
     await authService.revokeSession(req.user!.id);
     return res.status(200).json({ message: 'Logged out' });
-  } catch (error) {
+  } catch (error: any) {
     return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
@@ -102,7 +102,7 @@ export const me = async (req: AuthRequest, res: Response) => {
     });
     if (!user) return res.status(404).json({ message: 'User not found' });
     return res.status(200).json({ user });
-  } catch (error) {
+  } catch (error: any) {
     return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
@@ -193,7 +193,7 @@ export const deleteUserDocument = async (req: AuthRequest, res: Response) => {
     });
 
     return res.status(200).json({ message: 'Document deleted' });
-  } catch {
+  } catch (error: any) {
     return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
@@ -295,7 +295,7 @@ export const firebaseVerify = async (req: Request, res: Response) => {
         isApproved: user.is_approved,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
@@ -308,7 +308,7 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
       data: { deleted_at: new Date(), is_approved: false },
     });
     return res.status(200).json({ message: 'Account moved to recycle bin' });
-  } catch {
+  } catch (error: any) {
     return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
@@ -342,7 +342,7 @@ export const register = async (req: Request, res: Response) => {
     return res.status(201).json({
       message: 'Registration submitted, pending admin approval',
     });
-  } catch (error) {
+  } catch (error: any) {
     return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
