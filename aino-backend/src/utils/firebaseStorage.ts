@@ -1,4 +1,5 @@
 import path from 'path';
+import { randomUUID } from 'node:crypto';
 import admin from '../config/firebase';
 
 export async function uploadToFirebaseStorage(
@@ -16,15 +17,19 @@ export async function uploadToFirebaseStorage(
   const ext = path.extname(safeName) || (safeMimeType.includes('pdf') ? '.pdf' : '.jpg');
   const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
   const storagePath = `${folder}/${unique}${ext}`;
+  const downloadToken = randomUUID();
 
   const file = bucket.file(storagePath);
   await file.save(buffer, {
     contentType: mimeType,
     resumable: false,
+    metadata: {
+      metadata: { firebaseStorageDownloadTokens: downloadToken },
+    },
   });
 
-  // Firebase Storage download URL — works with UBLA-enabled buckets
-  const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(storagePath)}?alt=media`;
+  // Token-authenticated URL — readable by anyone with the link, no Firebase auth needed
+  const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(storagePath)}?alt=media&token=${downloadToken}`;
   return { url, storagePath };
 }
 
