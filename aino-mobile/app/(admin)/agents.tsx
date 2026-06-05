@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, Alert, Modal, Pressable, TextInput,
-  KeyboardAvoidingView, Platform, ScrollView,
+  KeyboardAvoidingView, Platform, ScrollView, Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -208,9 +208,13 @@ function CreateField({
 
 // ─── Detail bottom sheet ─────────────────────────────────────────────────────
 
-function DocItem({ doc, index }: Readonly<{ doc: UserDoc; index: number }>) {
+function DocItem({ doc }: Readonly<{ doc: UserDoc; index: number }>) {
+  const openDoc = () => {
+    Linking.openURL(doc.url).catch(() => Alert.alert('Error', 'Could not open document.'));
+  };
+
   return (
-    <View style={s.docRow}>
+    <TouchableOpacity style={s.docRow} onPress={openDoc} activeOpacity={0.7}>
       <View style={s.docIconWrap}>
         <Feather name={doc.type === 'pdf' ? 'file-text' : 'image'} size={16} color={GREEN} />
       </View>
@@ -220,10 +224,13 @@ function DocItem({ doc, index }: Readonly<{ doc: UserDoc; index: number }>) {
           {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
         </Text>
       </View>
-      <View style={[s.docTypeBadge, doc.type === 'pdf' ? s.docTypePdf : s.docTypeImg]}>
-        <Text style={s.docTypeText}>{doc.type.toUpperCase()}</Text>
+      <View style={s.docRowRight}>
+        <View style={[s.docTypeBadge, doc.type === 'pdf' ? s.docTypePdf : s.docTypeImg]}>
+          <Text style={s.docTypeText}>{doc.type.toUpperCase()}</Text>
+        </View>
+        <Feather name="external-link" size={13} color="#94a3b8" />
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -862,6 +869,7 @@ const s = StyleSheet.create({
   docInfo: { flex: 1 },
   docName: { fontSize: 13, fontWeight: '700', color: '#0a0f1c' },
   docDate: { fontSize: 11, color: '#94a3b8', marginTop: 1 },
+  docRowRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   docTypeBadge: {
     paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6,
   },

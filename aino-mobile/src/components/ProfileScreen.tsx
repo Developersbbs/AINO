@@ -461,69 +461,73 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* Documents */}
-          <Text style={[s.sectionLabel, { marginTop: 28 }]}>DOCUMENTS</Text>
-          <View style={[s.menuGroup, { overflow: 'visible' }]}>
+          {/* Documents — only for Agent and Owner */}
+          {user?.role !== 'Admin' && (
+            <>
+              <Text style={[s.sectionLabel, { marginTop: 28 }]}>DOCUMENTS</Text>
+              <View style={[s.menuGroup, { overflow: 'visible' }]}>
 
-            {/* Type selector */}
-            <View style={s.docTypeSection}>
-              <Text style={s.docTypeLabel}>Document Type</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.typeRow}
-              >
-                {DOC_TYPES.map((t) => (
-                  <TouchableOpacity
-                    key={t}
-                    style={[s.typePill, selectedType === t && s.typePillActive, selectedType === t && { backgroundColor: roleColor, borderColor: roleColor }]}
-                    onPress={() => setSelectedType(t)}
-                    activeOpacity={0.8}
+                {/* Type selector */}
+                <View style={s.docTypeSection}>
+                  <Text style={s.docTypeLabel}>Document Type</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={s.typeRow}
                   >
-                    <Text style={[s.typePillText, selectedType === t && s.typePillTextActive]}>{t}</Text>
+                    {DOC_TYPES.map((t) => (
+                      <TouchableOpacity
+                        key={t}
+                        style={[s.typePill, selectedType === t && s.typePillActive, selectedType === t && { backgroundColor: roleColor, borderColor: roleColor }]}
+                        onPress={() => setSelectedType(t)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[s.typePillText, selectedType === t && s.typePillTextActive]}>{t}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
+                  <TouchableOpacity
+                    style={[s.uploadBtn, { backgroundColor: roleColor }, uploading && s.uploadBtnOff]}
+                    onPress={handlePickAndUpload}
+                    disabled={uploading}
+                    activeOpacity={0.85}
+                  >
+                    {uploading ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <>
+                        <Feather name="upload" size={16} color="#fff" />
+                        <Text style={s.uploadBtnText}>Upload {selectedType}</Text>
+                      </>
+                    )}
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
+                </View>
 
-              <TouchableOpacity
-                style={[s.uploadBtn, { backgroundColor: roleColor }, uploading && s.uploadBtnOff]}
-                onPress={handlePickAndUpload}
-                disabled={uploading}
-                activeOpacity={0.85}
-              >
-                {uploading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <Feather name="upload" size={16} color="#fff" />
-                    <Text style={s.uploadBtnText}>Upload {selectedType}</Text>
-                  </>
+                {/* Uploaded list */}
+                {meLoading && <ActivityIndicator color={GREEN} style={{ padding: 20 }} />}
+                {!meLoading && docs.length === 0 && (
+                  <View style={s.emptyDocs}>
+                    <Feather name="file-text" size={24} color="#cbd5e1" />
+                    <Text style={s.emptyDocsText}>No documents uploaded yet</Text>
+                  </View>
                 )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Uploaded list */}
-            {meLoading && <ActivityIndicator color={GREEN} style={{ padding: 20 }} />}
-            {!meLoading && docs.length === 0 && (
-              <View style={s.emptyDocs}>
-                <Feather name="file-text" size={24} color="#cbd5e1" />
-                <Text style={s.emptyDocsText}>No documents uploaded yet</Text>
+                {!meLoading && docs.length > 0 && (
+                  <View style={s.docList}>
+                    {docs.map((doc, i) => (
+                      <DocRow
+                        key={`${doc.uploadedAt}-${doc.name}`}
+                        doc={doc}
+                        index={i}
+                        onDelete={confirmDelete}
+                        deleting={deleteMut.isPending}
+                      />
+                    ))}
+                  </View>
+                )}
               </View>
-            )}
-            {!meLoading && docs.length > 0 && (
-              <View style={s.docList}>
-                {docs.map((doc, i) => (
-                  <DocRow
-                    key={`${doc.uploadedAt}-${doc.name}`}
-                    doc={doc}
-                    index={i}
-                    onDelete={confirmDelete}
-                    deleting={deleteMut.isPending}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
+            </>
+          )}
 
           {/* Actions */}
           <Text style={[s.sectionLabel, { marginTop: 28 }]}>ACTIONS</Text>
