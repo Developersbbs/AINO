@@ -17,7 +17,7 @@ export const sendOtp = async (req: Request, res: Response) => {
 
     return res.status(200).json(response);
   } catch (error) {
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
 
@@ -69,7 +69,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
 
@@ -90,7 +90,7 @@ export const logout = async (req: AuthRequest, res: Response) => {
     await authService.revokeSession(req.user!.id);
     return res.status(200).json({ message: 'Logged out' });
   } catch (error) {
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
 
@@ -103,7 +103,7 @@ export const me = async (req: AuthRequest, res: Response) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
     return res.status(200).json({ user });
   } catch (error) {
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
 
@@ -124,7 +124,7 @@ export const updateMe = async (req: AuthRequest, res: Response) => {
     return res.status(200).json({ user });
   } catch (error: any) {
     if (error.code === 'P2002') return res.status(409).json({ message: 'Email already in use' });
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
 
@@ -194,7 +194,7 @@ export const deleteUserDocument = async (req: AuthRequest, res: Response) => {
 
     return res.status(200).json({ message: 'Document deleted' });
   } catch {
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
 
@@ -296,7 +296,7 @@ export const firebaseVerify = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
 
@@ -309,7 +309,7 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
     });
     return res.status(200).json({ message: 'Account moved to recycle bin' });
   } catch {
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
 
@@ -343,6 +343,6 @@ export const register = async (req: Request, res: Response) => {
       message: 'Registration submitted, pending admin approval',
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error: ' + String(error.message || error) });
   }
 };
