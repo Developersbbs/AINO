@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth';
 import { apiResponse } from '../../utils/apiResponse';
+import { uploadToFirebaseStorage, deleteFromFirebaseStorage } from '../../utils/firebaseStorage';
 import * as projectService from './projectService';
 
 export const createProject = async (req: AuthRequest, res: Response) => {
@@ -96,9 +97,6 @@ export const assignOwner = async (req: AuthRequest, res: Response) => {
   }
 };
 
-const backendBaseUrl = (): string =>
-  process.env.BACKEND_BASE_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
-
 function projectDocType(mimetype: string): string {
   if (mimetype.includes('pdf')) return 'pdf'
   if (mimetype.startsWith('image/')) return 'image'
@@ -112,13 +110,18 @@ export const uploadLayout = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) return apiResponse(res, 400, null, 'No image file provided');
 
-    const imageUrl = `${backendBaseUrl()}/uploads/layouts/${req.file.filename}`;
-    const project = await projectService.updateLayoutImage(String(req.params.id), imageUrl);
+    const { url } = await uploadToFirebaseStorage(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      `project-layouts/${req.params.id}`,
+    );
 
-    return apiResponse(res, 200, { layoutImageUrl: imageUrl, project }, 'Layout image uploaded');
+    const project = await projectService.updateLayoutImage(String(req.params.id), url);
+    return apiResponse(res, 200, { layoutImageUrl: url, project }, 'Layout image uploaded');
   } catch (error: any) {
     if (error.code === 'P2025') return apiResponse(res, 404, null, 'Project not found');
-    return apiResponse(res, 500, null, 'Server error');
+    return apiResponse(res, 500, null, error.message ?? 'Server error');
   }
 };
 
@@ -130,10 +133,18 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
     const project = await projectService.getProjectById(id);
     if (!project) return apiResponse(res, 404, null, 'Project not found');
 
+    const { url, storagePath } = await uploadToFirebaseStorage(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      `project-documents/${id}`,
+    );
+
     const existing = (project.documents as any[]) ?? [];
     const newDoc = {
       name: (req.body.name as string | undefined)?.trim() || req.file.originalname,
-      url: `${backendBaseUrl()}/uploads/documents/${req.file.filename}`,
+      url,
+      storagePath,
       type: projectDocType(req.file.mimetype),
       uploadedAt: new Date().toISOString(),
     };
@@ -142,7 +153,7 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
     return apiResponse(res, 200, { document: newDoc, documents: updated.documents }, 'Document uploaded');
   } catch (error: any) {
     if (error.code === 'P2025') return apiResponse(res, 404, null, 'Project not found');
-    return apiResponse(res, 500, null, 'Server error');
+    return apiResponse(res, 500, null, error.message ?? 'Server error');
   }
 };
 
@@ -159,12 +170,17 @@ export const deleteDocument = async (req: AuthRequest, res: Response) => {
       return apiResponse(res, 404, null, 'Document not found');
     }
 
+    const docToDelete = existing[index] as { storagePath?: string };
+    if (docToDelete?.storagePath) {
+      await deleteFromFirebaseStorage(docToDelete.storagePath);
+    }
+
     const updated = existing.filter((_, i) => i !== index);
     await projectService.updateDocuments(id, updated);
     return apiResponse(res, 200, { documents: updated }, 'Document deleted');
   } catch (error: any) {
     if (error.code === 'P2025') return apiResponse(res, 404, null, 'Project not found');
-    return apiResponse(res, 500, null, 'Server error');
+    return apiResponse(res, 500, null, error.message ?? 'Server error');
   }
 };
 

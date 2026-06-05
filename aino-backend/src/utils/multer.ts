@@ -1,19 +1,6 @@
 import multer from 'multer';
-import path from 'node:path';
-import fs from 'node:fs';
 
-const UPLOAD_DIR = 'uploads/layouts';
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `layout-${uniqueSuffix}${path.extname(file.originalname)}`);
-  },
-});
-
-const fileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
+const layoutFileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
   if (['image/jpeg', 'image/png'].includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -21,21 +8,11 @@ const fileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
   }
 };
 
+// Memory storage — buffer passed directly to Firebase Storage
 export const layoutUpload = multer({
-  storage,
-  fileFilter,
+  storage: multer.memoryStorage(),
+  fileFilter: layoutFileFilter,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
-});
-
-const DOC_DIR = 'uploads/documents';
-fs.mkdirSync(DOC_DIR, { recursive: true });
-
-const docStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, DOC_DIR),
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `doc-${uniqueSuffix}${path.extname(file.originalname)}`);
-  },
 });
 
 const docFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
@@ -58,8 +35,9 @@ const docFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
   }
 };
 
+// Memory storage — buffer passed directly to Firebase Storage
 export const documentUpload = multer({
-  storage: docStorage,
+  storage: multer.memoryStorage(),
   fileFilter: docFilter,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
 });
