@@ -9,6 +9,7 @@ import {
   Image,
   TextInput,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -86,20 +87,32 @@ function DocRow({ doc, index, onDelete, deleting }: Readonly<{
 }>) {
   return (
     <View style={s.docRow}>
-      <View style={s.docIconWrap}>
-        <Feather name={doc.type === 'pdf' ? 'file-text' : 'image'} size={16} color={GREEN} />
-      </View>
-      <View style={s.docInfo}>
-        <Text style={s.docName} numberOfLines={1}>{doc.name}</Text>
-        <Text style={s.docDate}>
-          {new Date(doc.uploadedAt).toLocaleDateString('en-IN', {
-            day: 'numeric', month: 'short', year: 'numeric',
-          })}
-        </Text>
-      </View>
-      <View style={[s.docTypeBadge, doc.type === 'pdf' ? s.docTypePdf : s.docTypeImg]}>
-        <Text style={s.docTypeText}>{doc.type.toUpperCase()}</Text>
-      </View>
+      <TouchableOpacity
+        style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}
+        activeOpacity={0.7}
+        onPress={() => {
+          if (doc.url) {
+            Linking.openURL(doc.url).catch(() =>
+              Alert.alert('Error', 'Could not open document.')
+            );
+          }
+        }}
+      >
+        <View style={s.docIconWrap}>
+          <Feather name={doc.type === 'pdf' ? 'file-text' : 'image'} size={16} color={GREEN} />
+        </View>
+        <View style={s.docInfo}>
+          <Text style={s.docName} numberOfLines={1}>{doc.name}</Text>
+          <Text style={s.docDate}>
+            {new Date(doc.uploadedAt).toLocaleDateString('en-IN', {
+              day: 'numeric', month: 'short', year: 'numeric',
+            })}
+          </Text>
+        </View>
+        <View style={[s.docTypeBadge, doc.type === 'pdf' ? s.docTypePdf : s.docTypeImg]}>
+          <Text style={s.docTypeText}>{doc.type.toUpperCase()}</Text>
+        </View>
+      </TouchableOpacity>
       <TouchableOpacity
         style={s.docDel}
         onPress={() => onDelete(index, doc.name)}
@@ -218,7 +231,7 @@ export default function ProfileScreen() {
 
   const confirmDelete = (index: number, docName: string) => {
     if (Platform.OS === 'web') {
-      if (window.confirm(`Remove "${docName}"?`)) {
+      if (globalThis.confirm(`Remove "${docName}"?`)) {
         deleteMut.mutate(index);
       }
       return;
@@ -243,7 +256,7 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure you want to log out?')) {
+      if (globalThis.confirm('Are you sure you want to log out?')) {
         doLogout();
       }
       return;
@@ -267,29 +280,17 @@ export default function ProfileScreen() {
 
   const handleDeleteAccount = () => {
     if (Platform.OS === 'web') {
-      if (window.confirm('This will permanently delete your account and all associated data. This cannot be undone. Are you absolutely sure?')) {
+      if (globalThis.confirm('Move your account to the recycle bin? An admin can restore it later.')) {
         doDeleteAccount();
       }
       return;
     }
     Alert.alert(
-      'Delete Account',
-      'This will permanently delete your account and all associated data. This cannot be undone.',
+      'Move to Recycle Bin',
+      'Your account will be deactivated and moved to the recycle bin. An admin can restore it later.',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () =>
-            Alert.alert(
-              'Are you absolutely sure?',
-              `Your account for ${user?.phone} will be permanently deleted.`,
-              [
-                { text: 'No, keep it', style: 'cancel' },
-                { text: 'Yes, delete', style: 'destructive', onPress: doDeleteAccount },
-              ],
-            ),
-        },
+        { text: 'Move to Recycle Bin', style: 'destructive', onPress: doDeleteAccount },
       ],
     );
   };
@@ -535,8 +536,8 @@ export default function ProfileScreen() {
             />
             <View style={s.separator} />
             <MenuItem
-              icon="trash-2"
-              label="Delete Account"
+              icon="archive"
+              label="Move to Recycle Bin"
               onPress={handleDeleteAccount}
               loading={deleting}
               destructive

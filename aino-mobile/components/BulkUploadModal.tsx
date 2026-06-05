@@ -6,6 +6,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '@/src/api/client';
 
@@ -35,6 +37,14 @@ const RED   = '#ef4444';
 
 const TEMPLATE_COLS =
   'Name, Type, Location, RERA Number, Owner Phone, Block/Phase, Approval Authority, Approval Number';
+
+// ─── Demo CSV ─────────────────────────────────────────────────────────────────
+
+const DEMO_CSV = `Name,Type,Location,RERA Number,Owner Phone,Block/Phase,Approval Authority,Approval Number
+Sunrise Valley,Residential,Hyderabad,TS-RERA-2024-001,9876543210,Phase 1,HMDA,APP-2024-001
+Green Meadows,Commercial,Bangalore,KA-RERA-2024-002,9876543211,Block A,BDA,APP-2024-002
+Blue Hills,Residential,Chennai,TN-RERA-2024-003,9876543212,Phase 2,CMDA,APP-2024-003
+`;
 
 // ─── Row preview card ─────────────────────────────────────────────────────────
 
@@ -83,6 +93,7 @@ export default function BulkUploadModal({ visible, onClose }: Props) {
   const [parsing, setParsing]     = useState(false);
   const [rows, setRows]           = useState<ParsedRow[]>([]);
   const [result, setResult]       = useState<CreateResult | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const validRows  = rows.filter((r) => r.valid);
   const invalidRows = rows.filter((r) => !r.valid);
@@ -97,6 +108,26 @@ export default function BulkUploadModal({ visible, onClose }: Props) {
   };
 
   const handleClose = () => { reset(); onClose(); };
+
+  // ── Download demo CSV ──────────────────────────────────────────────────────
+
+  const downloadTemplate = async () => {
+    setDownloading(true);
+    try {
+      const path = `${FileSystem.cacheDirectory}projects_template.csv`;
+      await FileSystem.writeAsStringAsync(path, DEMO_CSV);
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Save projects_template.csv' });
+      } else {
+        Alert.alert('Not supported', 'Sharing is not available on this device.');
+      }
+    } catch {
+      Alert.alert('Error', 'Could not generate template file.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   // ── Step 1: pick file ──────────────────────────────────────────────────────
 
@@ -191,6 +222,21 @@ export default function BulkUploadModal({ visible, onClose }: Props) {
                 <Text style={s.templateNote}>
                   Only Name, Type, and Location are required. All other columns are optional.
                 </Text>
+                <TouchableOpacity
+                  style={[s.downloadBtn, downloading && s.btnDisabled]}
+                  onPress={downloadTemplate}
+                  disabled={downloading}
+                  activeOpacity={0.8}
+                >
+                  {downloading ? (
+                    <ActivityIndicator size="small" color={GREEN} />
+                  ) : (
+                    <>
+                      <Feather name="download" size={14} color={GREEN} />
+                      <Text style={s.downloadBtnText}>Download Demo CSV</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               </View>
 
               {/* File picker */}
@@ -361,6 +407,13 @@ const s = StyleSheet.create({
   templateTitle:  { fontSize: 12, fontWeight: '700', color: '#64748b' },
   templateCols:   { fontSize: 11, color: '#475569', fontFamily: 'monospace', lineHeight: 18 },
   templateNote:   { fontSize: 11, color: '#94a3b8', marginTop: 8 },
+
+  downloadBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+    borderWidth: 1.5, borderColor: GREEN, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 7, marginTop: 4,
+  },
+  downloadBtnText: { fontSize: 12, fontWeight: '700', color: GREEN },
 
   pickBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 10,

@@ -25,11 +25,29 @@ export default function OwnerBookingsPage() {
 
   const { data: bookings = [], isLoading } = useQuery<Booking[]>({
     queryKey: ['owner-bookings'],
-    queryFn: () => api.get('/owner/bookings').then((r) => (Array.isArray(r.data) ? r.data : [])),
+    queryFn: () =>
+      api.get('/owner/bookings').then((r) => {
+        const raw: any[] = Array.isArray(r.data) ? r.data : []
+        return raw.map((b) => ({
+          id: b.id,
+          unit: {
+            unitNumber: b.unit?.unit_number ?? b.unit?.unitNumber ?? '',
+            project: { name: b.unit?.project?.project_name ?? b.unit?.project?.name ?? '' },
+          },
+          agent: { name: b.agent?.name ?? '' },
+          customer: {
+            name: b.customer_name ?? b.customer?.name ?? '',
+            phone: b.customer_phone ?? b.customer?.phone ?? '',
+          },
+          status: (b.status ?? '').toLowerCase(),
+          amount: b.unit?.price ?? b.amount ?? 0,
+          createdAt: b.booking_date ?? b.createdAt ?? '',
+        }))
+      }),
   })
 
   const verifyMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/owner/bookings/${id}/verify`),
+    mutationFn: (id: string) => api.post(`/owner/bookings/${id}/verify`, { confirmed: true }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['owner-bookings'] }); toast.success('Booking verified') },
     onError: () => toast.error('Failed to verify booking'),
   })

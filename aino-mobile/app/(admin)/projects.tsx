@@ -14,6 +14,7 @@ import {
   Platform,
   Pressable,
   Switch,
+  Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -1268,19 +1269,31 @@ export default function AdminProjectsScreen() {
                 ) : (
                   (project.documents ?? []).map((doc, i) => (
                     <View key={doc.name} style={s.docRow}>
-                      <View style={[s.docIcon, doc.type === 'pdf' ? s.docIconPdf : s.docIconImg]}>
-                        <Feather
-                          name={doc.type === 'pdf' ? 'file-text' : 'image'}
-                          size={18}
-                          color={doc.type === 'pdf' ? '#ef4444' : '#3b82f6'}
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.docName} numberOfLines={1}>{doc.name}</Text>
-                        <Text style={s.docDate}>
-                          {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </Text>
-                      </View>
+                      <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          if (doc.url) {
+                            Linking.openURL(doc.url).catch(() =>
+                              Alert.alert('Error', 'Could not open document.')
+                            );
+                          }
+                        }}
+                      >
+                        <View style={[s.docIcon, doc.type === 'pdf' ? s.docIconPdf : s.docIconImg]}>
+                          <Feather
+                            name={doc.type === 'pdf' ? 'file-text' : 'image'}
+                            size={18}
+                            color={doc.type === 'pdf' ? '#ef4444' : '#3b82f6'}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.docName} numberOfLines={1}>{doc.name}</Text>
+                          <Text style={s.docDate}>
+                            {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
                       <TouchableOpacity
                         style={s.docDeleteBtn}
                         onPress={() =>

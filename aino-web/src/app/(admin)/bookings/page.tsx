@@ -43,7 +43,19 @@ export default function AdminBookingsPage() {
     queryKey: ['admin-bookings'],
     queryFn: async () => {
       const r = await api.get('/bookings')
-      return Array.isArray(r.data) ? r.data : []
+      const raw: any[] = Array.isArray(r.data) ? r.data : []
+      return raw.map((b) => ({
+        id: b.id,
+        unit: {
+          unitNumber: b.unit?.unit_number ?? b.unit?.unitNumber ?? '',
+          project: { name: b.unit?.project?.project_name ?? b.unit?.project?.name ?? '' },
+        },
+        agent: { name: b.agent?.name ?? '' },
+        customer: { name: b.customer_name ?? b.customer?.name ?? '', phone: b.customer_phone ?? b.customer?.phone ?? '' },
+        status: (b.status ?? '').toLowerCase(),
+        amount: b.unit?.price ?? b.amount ?? 0,
+        createdAt: b.booking_date ?? b.createdAt ?? '',
+      }))
     },
   })
 

@@ -22,8 +22,11 @@ router.post('/agents/:id/approve',      adminController.approveAgent);
 router.post('/agents/:id/reject',       adminController.rejectAgent);
 router.post('/agents/:id/deactivate',   adminController.deactivateAgent);
 
-router.patch('/users/:id',               adminController.editUser);
-router.get('/audit-log',                 auditLogController.listAuditLogs);
+router.patch('/users/:id',                       adminController.editUser);
+router.get('/recycle-bin',                       adminController.getRecycleBin);
+router.post('/recycle-bin/:id/restore',          adminController.restoreUser);
+router.delete('/recycle-bin/:id',                adminController.permanentlyDeleteUser);
+router.get('/audit-log',                         auditLogController.listAuditLogs);
 
 // Commission config
 router.get('/commission-config',                        commissionController.getConfig);

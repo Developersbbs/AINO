@@ -154,6 +154,39 @@ export const editUser = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const getRecycleBin = async (_req: AuthRequest, res: Response) => {
+  try {
+    const users = await adminService.getRecycleBin();
+    return apiResponse(res, 200, users, 'Recycle bin retrieved');
+  } catch {
+    return apiResponse(res, 500, null, 'Server error');
+  }
+};
+
+export const restoreUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = String(req.params.id);
+    const user = await adminService.restoreUser(id);
+    logAudit(req, { action: 'RESTORE_USER', targetType: 'User', targetId: user.id, targetName: user.name });
+    return apiResponse(res, 200, user, 'User restored');
+  } catch (error: any) {
+    if (error.code === 'P2025') return apiResponse(res, 404, null, 'User not found');
+    return apiResponse(res, 500, null, 'Server error');
+  }
+};
+
+export const permanentlyDeleteUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = String(req.params.id);
+    await adminService.permanentlyDeleteUser(id);
+    logAudit(req, { action: 'PERMANENT_DELETE_USER', targetType: 'User', targetId: id, targetName: id });
+    return apiResponse(res, 200, null, 'User permanently deleted');
+  } catch (error: any) {
+    if (error.code === 'P2025') return apiResponse(res, 404, null, 'User not found');
+    return apiResponse(res, 500, null, 'Server error');
+  }
+};
+
 export const getAdminProjects = async (_req: AuthRequest, res: Response) => {
   try {
     const projects = await adminService.getAllProjectsAdmin();

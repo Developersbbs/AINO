@@ -9,7 +9,8 @@ const router = Router();
 router.post('/', bookingController.createBooking);
 
 // ── Authenticated ─────────────────────────────────────────────────────────────
-router.get('/my', protect, roles('Agent'), bookingController.getMyBookings);
+router.get('/',    protect, roles('Admin'), bookingController.getAllBookings);
+router.get('/my',  protect, roles('Agent'), bookingController.getMyBookings);
 router.get('/:id', protect, bookingController.getBookingById);
 router.post('/:id/cancel', protect, roles('Admin'), bookingController.cancelBooking);
 

@@ -29,7 +29,7 @@ export const createUser = (data: {
 
 export const getAllAgents = () => {
   return prisma.user.findMany({
-    where: { role: UserRole.Agent },
+    where: { role: UserRole.Agent, deleted_at: null },
     select: {
       id: true,
       name: true,
@@ -76,7 +76,7 @@ export const deactivateAgent = (id: string) => {
 
 export const getAllOwners = () => {
   return prisma.user.findMany({
-    where: { role: UserRole.Owner },
+    where: { role: UserRole.Owner, deleted_at: null },
     select: {
       id: true,
       name: true,
@@ -88,6 +88,34 @@ export const getAllOwners = () => {
     },
     orderBy: { created_at: 'desc' },
   });
+};
+
+export const getRecycleBin = () => {
+  return prisma.user.findMany({
+    where: { deleted_at: { not: null } },
+    select: { id: true, name: true, phone: true, email: true, role: true, deleted_at: true, created_at: true },
+    orderBy: { deleted_at: 'desc' },
+  });
+};
+
+export const restoreUser = (id: string) => {
+  return prisma.user.update({
+    where: { id },
+    data: { deleted_at: null, is_approved: true },
+    select: { id: true, name: true, role: true },
+  });
+};
+
+export const permanentlyDeleteUser = async (id: string) => {
+  await prisma.$transaction([
+    prisma.unit.updateMany({ where: { booked_by_agent_id: id }, data: { booked_by_agent_id: null } }),
+    prisma.project.updateMany({ where: { owner_id: id }, data: { owner_id: null } }),
+    prisma.commission.deleteMany({ where: { agent_id: id } }),
+    prisma.booking.deleteMany({ where: { agent_id: id } }),
+    prisma.lead.deleteMany({ where: { agent_id: id } }),
+    prisma.notification.deleteMany({ where: { user_id: id } }),
+    prisma.user.delete({ where: { id } }),
+  ]);
 };
 
 export const getAllProjectsAdmin = () => {

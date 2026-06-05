@@ -226,6 +226,9 @@ export const firebaseVerify = async (req: Request, res: Response) => {
 
       let user = await prisma.user.findUnique({ where: { phone: verifiedPhone } });
       if (user) {
+        if (user.deleted_at) {
+          return res.status(403).json({ message: 'This account has been deactivated. Contact admin to restore it.' });
+        }
         const { accessToken, refreshToken } = await authService.generateTokens(user.id, user.role);
         return res.status(200).json({
           message: 'Welcome back!',
@@ -300,15 +303,11 @@ export const firebaseVerify = async (req: Request, res: Response) => {
 export const deleteAccount = async (req: AuthRequest, res: Response) => {
   const userId = req.user!.id;
   try {
-    await prisma.$transaction([
-      prisma.unit.updateMany({ where: { booked_by_agent_id: userId }, data: { booked_by_agent_id: null } }),
-      prisma.project.updateMany({ where: { owner_id: userId }, data: { owner_id: null } }),
-      prisma.commission.deleteMany({ where: { agent_id: userId } }),
-      prisma.booking.deleteMany({ where: { agent_id: userId } }),
-      prisma.lead.deleteMany({ where: { agent_id: userId } }),
-      prisma.user.delete({ where: { id: userId } }),
-    ]);
-    return res.status(200).json({ message: 'Account deleted' });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { deleted_at: new Date(), is_approved: false },
+    });
+    return res.status(200).json({ message: 'Account moved to recycle bin' });
   } catch {
     return res.status(500).json({ message: 'Server error' });
   }

@@ -100,9 +100,14 @@ export default function OwnerSettingsPage() {
 
   async function handleUpload() {
     if (selectedFiles.length === 0) return
-    await Promise.all(selectedFiles.map((f) => uploadMutation.mutateAsync(f).catch(() => null)))
+    const results = await Promise.all(
+      selectedFiles.map((f) => uploadMutation.mutateAsync(f).then(() => true).catch(() => false))
+    )
+    const succeeded = results.filter(Boolean).length
+    const failed = results.length - succeeded
     setSelectedFiles([])
-    toast.success('Documents uploaded')
+    if (succeeded > 0) toast.success(`${succeeded} document${succeeded > 1 ? 's' : ''} uploaded`)
+    if (failed > 0) toast.error(`${failed} upload${failed > 1 ? 's' : ''} failed — check your connection`)
   }
 
   function handleSave(e: React.FormEvent) {

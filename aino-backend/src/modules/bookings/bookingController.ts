@@ -45,6 +45,16 @@ export const createBooking = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+// ── GET / — Admin: all bookings ───────────────────────────────────────────────
+export const getAllBookings = async (_req: AuthRequest, res: Response) => {
+  try {
+    const bookings = await bookingService.getAllBookings();
+    return apiResponse(res, 200, bookings, 'Bookings retrieved');
+  } catch {
+    return apiResponse(res, 500, null, 'Server error');
+  }
+};
+
 // ── GET /my — Agent's own bookings ────────────────────────────────────────────
 export const getMyBookings = async (req: AuthRequest, res: Response) => {
   try {

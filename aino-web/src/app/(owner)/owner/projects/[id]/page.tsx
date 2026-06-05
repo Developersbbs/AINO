@@ -55,10 +55,20 @@ export default function OwnerProjectDetailPage() {
 
   const { data: units = [], isLoading: unitsLoading } = useQuery<Unit[]>({
     queryKey: ['owner-project-units', id],
-    queryFn: () => api.get(`/projects/${id}/units`).then((r) => {
-      const d = r.data
-      return Array.isArray(d) ? d : (d?.units ?? [])
-    }),
+    queryFn: () =>
+      api.get(`/projects/${id}/units`).then((r) => {
+        const raw: any[] = Array.isArray(r.data) ? r.data : (r.data?.units ?? [])
+        return raw.map((u) => ({
+          id: u.id,
+          unitNumber: u.unit_number ?? u.unitNumber ?? '',
+          floor: u.floor ?? null,
+          facing: u.facing ?? '',
+          size: u.sq_ft ?? u.size ?? 0,
+          price: u.price ?? 0,
+          type: u.attributes?.type ?? u.type ?? '',
+          status: (u.status ?? '').toLowerCase() as Unit['status'],
+        }))
+      }),
   })
 
   const isLoading = projectLoading || unitsLoading
@@ -125,10 +135,10 @@ export default function OwnerProjectDetailPage() {
               {units.map((unit) => (
                 <Tr key={unit.id}>
                   <Td><span style={{ fontWeight: 600, color: '#0f172a' }}>{unit.unitNumber}</span></Td>
-                  <Td>{unit.type}</Td>
-                  <Td>{unit.floor}</Td>
-                  <Td>{unit.facing}</Td>
-                  <Td>{unit.size.toLocaleString()} sqft</Td>
+                  <Td>{unit.type || '—'}</Td>
+                  <Td>{unit.floor ?? '—'}</Td>
+                  <Td>{unit.facing || '—'}</Td>
+                  <Td>{unit.size ? unit.size.toLocaleString() : '—'} sqft</Td>
                   <Td><span style={{ fontWeight: 600, color: '#059669' }}>{formatCurrency(unit.price)}</span></Td>
                   <Td><Badge status={unit.status} /></Td>
                 </Tr>

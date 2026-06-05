@@ -38,7 +38,30 @@ interface SalesReport {
 export default function OwnerReportsPage() {
   const { data, isLoading } = useQuery<SalesReport>({
     queryKey: ['owner-reports'],
-    queryFn: () => api.get('/owner/reports').then((r) => r.data),
+    queryFn: () =>
+      api.get('/owner/reports').then((r): SalesReport => {
+        const d = r.data ?? {}
+        // Backend shape: { revenue, pendingCommissions, soldUnits, bookedUnits, agentPerformance }
+        const sold: number = d.soldUnits ?? d.summary?.totalSold ?? 0
+        const revenue: number = d.revenue ?? d.summary?.totalRevenue ?? 0
+        const bookings: number = d.bookedUnits ?? d.summary?.totalBookings ?? 0
+        const avgPrice: number = sold > 0 ? revenue / sold : (d.summary?.averagePrice ?? 0)
+        return {
+          summary: {
+            totalRevenue: revenue,
+            totalSold: sold,
+            totalBookings: bookings,
+            averagePrice: avgPrice,
+          },
+          monthlySales: d.monthlySales ?? [],
+          projectBreakdown: (d.agentPerformance ?? d.projectBreakdown ?? []).map((a: any) => ({
+            projectName: a.name ?? a.projectName ?? '',
+            totalUnits: a.bookings ?? a.totalUnits ?? 0,
+            sold: a.bookings ?? a.sold ?? 0,
+            revenue: a.commissionTotal ?? a.revenue ?? 0,
+          })),
+        }
+      }),
   })
 
   if (isLoading) {

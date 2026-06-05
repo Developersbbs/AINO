@@ -90,6 +90,21 @@ export const getBookingById = (id: string) => {
   });
 };
 
+export const getAllBookings = () => {
+  return prisma.booking.findMany({
+    include: {
+      unit: {
+        select: {
+          id: true, unit_number: true, price: true, status: true,
+          project: { select: { id: true, project_name: true } },
+        },
+      },
+      agent: { select: { id: true, name: true, phone: true } },
+    },
+    orderBy: { booking_date: 'desc' },
+  });
+};
+
 export const cancelBooking = async (id: string) => {
   return prisma.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({ where: { id } });
