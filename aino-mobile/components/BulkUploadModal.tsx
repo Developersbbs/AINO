@@ -6,7 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '@/src/api/client';
@@ -48,7 +48,7 @@ Blue Hills,Residential,Chennai,TN-RERA-2024-003,9876543212,Phase 2,CMDA,APP-2024
 
 // ─── Row preview card ─────────────────────────────────────────────────────────
 
-function RowCard({ row }: { row: ParsedRow }) {
+function RowCard({ row }: Readonly<{ row: ParsedRow }>) {
   const accent = row.valid ? GREEN : RED;
   return (
     <View style={[rc.card, { borderLeftColor: accent }]}>
@@ -70,8 +70,8 @@ function RowCard({ row }: { row: ParsedRow }) {
         </>
       ) : (
         <View style={rc.errList}>
-          {row.errors.map((e, i) => (
-            <Text key={i} style={rc.errText}>• {e}</Text>
+          {row.errors.map((e) => (
+            <Text key={e} style={rc.errText}>• {e}</Text>
           ))}
         </View>
       )}
@@ -83,7 +83,7 @@ function RowCard({ row }: { row: ParsedRow }) {
 
 interface Props { visible: boolean; onClose: () => void; }
 
-export default function BulkUploadModal({ visible, onClose }: Props) {
+export default function BulkUploadModal({ visible, onClose }: Readonly<Props>) {
   const insets      = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
@@ -222,22 +222,23 @@ export default function BulkUploadModal({ visible, onClose }: Props) {
                 <Text style={s.templateNote}>
                   Only Name, Type, and Location are required. All other columns are optional.
                 </Text>
-                <TouchableOpacity
-                  style={[s.downloadBtn, downloading && s.btnDisabled]}
-                  onPress={downloadTemplate}
-                  disabled={downloading}
-                  activeOpacity={0.8}
-                >
-                  {downloading ? (
-                    <ActivityIndicator size="small" color={GREEN} />
-                  ) : (
-                    <>
-                      <Feather name="download" size={14} color={GREEN} />
-                      <Text style={s.downloadBtnText}>Download Demo CSV</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
               </View>
+
+              <TouchableOpacity
+                style={[s.downloadBtn, downloading && s.btnDisabled]}
+                onPress={downloadTemplate}
+                disabled={downloading}
+                activeOpacity={0.8}
+              >
+                {downloading ? (
+                  <ActivityIndicator size="small" color={GREEN} />
+                ) : (
+                  <>
+                    <Feather name="download" size={14} color={GREEN} />
+                    <Text style={s.downloadBtnText}>Download Demo CSV</Text>
+                  </>
+                )}
+              </TouchableOpacity>
 
               {/* File picker */}
               <TouchableOpacity style={s.pickBtn} onPress={pickFile} activeOpacity={0.8}>
@@ -299,7 +300,7 @@ export default function BulkUploadModal({ visible, onClose }: Props) {
                   activeOpacity={0.85}
                 >
                   <Feather name="plus-circle" size={16} color="#fff" />
-                  <Text style={s.actionBtnText}>Create {validRows.length} Project{validRows.length !== 1 ? 's' : ''}</Text>
+                  <Text style={s.actionBtnText}>Create {validRows.length} Project{validRows.length === 1 ? '' : 's'}</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -334,8 +335,8 @@ export default function BulkUploadModal({ visible, onClose }: Props) {
 
               {result.failures.length > 0 && (
                 <ScrollView style={s.failList} contentContainerStyle={{ gap: 6 }}>
-                  {result.failures.map((f, i) => (
-                    <View key={i} style={s.failItem}>
+                  {result.failures.map((f) => (
+                    <View key={f.name} style={s.failItem}>
                       <Feather name="alert-circle" size={13} color={RED} />
                       <Text style={s.failText} numberOfLines={2}>
                         <Text style={{ fontWeight: '700' }}>{f.name}:</Text> {f.error}

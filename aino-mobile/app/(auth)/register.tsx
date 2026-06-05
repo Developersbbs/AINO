@@ -17,7 +17,6 @@ import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { auth } from '@/config/firebase';
 import { signInWithPhoneNumber } from 'firebase/auth';
-import rnAuth from '@react-native-firebase/auth';
 import { setConfirmation } from '@/src/lib/phoneAuth';
 import { useRecaptchaVerifier } from '../../hooks/use-recaptcha-verifier';
 import { shadow } from '@/src/lib/shadow';
@@ -66,14 +65,9 @@ export default function RegisterScreen() {
 
     try {
       setLoading(true);
-      if (Platform.OS === 'web') {
-        const result = await signInWithPhoneNumber(auth, fullPhone, getVerifier() as any);
-        setConfirmation(result);
-      } else {
-        const confirmation = await rnAuth().signInWithPhoneNumber(fullPhone);
-        setConfirmation(confirmation);
-      }
       setPendingDocs(selectedDocs);
+      const result = await signInWithPhoneNumber(auth, fullPhone, getVerifier() as any);
+      setConfirmation(result);
       router.push({
         pathname: '/(auth)/otp' as any,
         params: { phone: fullPhone, name: name.trim(), email: email.trim(), role, mode: 'register' },

@@ -164,7 +164,7 @@ function SectionHeader({
   title, isOpen, onToggle, hint,
 }: { title: string; isOpen: boolean; onToggle: () => void; hint?: string }) {
   return (
-    <TouchableOpacity style={f.sectionHeader} onPress={onToggle} activeOpacity={0.7}>
+    <TouchableOpacity style={[f.sectionHeader, !isOpen && f.sectionHeaderClosed]} onPress={onToggle} activeOpacity={0.7}>
       <View style={f.sectionHeaderLeft}>
         <Text style={f.sectionTitle}>{title}</Text>
         {hint && !isOpen && <Text style={f.sectionHint}>{hint}</Text>}
@@ -349,7 +349,26 @@ export default function AdminProjectsScreen() {
   }, []);
 
   const setUnitField = useCallback(<K extends keyof AddUnitForm>(key: K, val: AddUnitForm[K]) => {
-    setUnitForm((prev) => ({ ...prev, [key]: val }));
+    setUnitForm((prev) => {
+      const next = { ...prev, [key]: val };
+      // Auto-fill sq_ft from length × width
+      if (key === 'length' || key === 'width') {
+        const l = Number(key === 'length' ? val : prev.length);
+        const w = Number(key === 'width' ? val : prev.width);
+        if (l > 0 && w > 0) {
+          next.sq_ft = String(l * w);
+          const pr = Number(prev.price);
+          if (pr > 0) next.rate_per_sqft = String(Math.round(pr / (l * w)));
+        }
+      }
+      // Auto-calculate rate_per_sqft from price ÷ sq_ft
+      if (key === 'sq_ft' || key === 'price') {
+        const sq = Number(key === 'sq_ft' ? val : next.sq_ft);
+        const pr = Number(key === 'price' ? val : prev.price);
+        if (sq > 0 && pr > 0) next.rate_per_sqft = String(Math.round(pr / sq));
+      }
+      return next;
+    });
   }, []);
 
   // ── Queries ──────────────────────────────────────────────────────────────
@@ -554,8 +573,6 @@ export default function AdminProjectsScreen() {
     const price = Number(unitForm.price);
     if (!unitForm.sq_ft || isNaN(sqFt) || sqFt <= 0) return Alert.alert('Invalid', 'Enter a valid plot size (sq ft).');
     if (!unitForm.price || isNaN(price) || price <= 0) return Alert.alert('Invalid', 'Enter a valid total price.');
-    const ratePerSqft = Number(unitForm.rate_per_sqft);
-    if (!unitForm.rate_per_sqft || isNaN(ratePerSqft) || ratePerSqft <= 0) return Alert.alert('Required', 'Enter a valid rate per sq.ft.');
     const bookingAmount = Number(unitForm.booking_amount);
     if (!unitForm.booking_amount || isNaN(bookingAmount) || bookingAmount <= 0) return Alert.alert('Required', 'Enter a valid booking amount.');
     addUnitMutation.mutate(unitForm);
@@ -662,7 +679,7 @@ export default function AdminProjectsScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
             {/* ── Required ── */}
             <SectionHeader title="REQUIRED DETAILS" isOpen={unitSections.has('required')} onToggle={() => toggleUnitSection('required')} />
@@ -705,13 +722,12 @@ export default function AdminProjectsScreen() {
                 </View>
                 {unitForm.length && unitForm.width && (
                   <View style={f.calcBadge}>
-                    <Feather name="maximize" size={12} color="#64748b" />
+                    <Feather name="maximize" size={12} color={GREEN} />
                     <Text style={f.calcText}>
-                      Area: {(Number(unitForm.length) * Number(unitForm.width)).toLocaleString('en-IN')} {unitForm.dimension_format === 'Meters' ? 'sq.m' : 'sq.ft'}
+                      Auto-filled Total Size: {(Number(unitForm.length) * Number(unitForm.width)).toLocaleString('en-IN')} {unitForm.dimension_format === 'Meters' ? 'sq.m' : 'sq.ft'}
                     </Text>
                   </View>
                 )}
-                <FormField label="RATE PER SQ.FT (₹)" value={unitForm.rate_per_sqft} onChangeText={(v) => setUnitField('rate_per_sqft', v)} placeholder="e.g. 4500" keyboardType="numeric" />
               </View>
             )}
 
@@ -832,7 +848,7 @@ export default function AdminProjectsScreen() {
             </TouchableOpacity>
             <Text style={s.pageTitle}>New Project</Text>
           </View>
-          <ScrollView contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
             {/* Basic info */}
             <SectionHeader title="BASIC INFORMATION" isOpen={createSections.has('basic')} onToggle={() => toggleCreateSection('basic')} />
@@ -974,7 +990,7 @@ export default function AdminProjectsScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
             <SectionHeader title="BASIC INFORMATION" isOpen={editProjectSections.has('basic')} onToggle={() => setEditProjectSections((prev) => { const n = new Set(prev); n.has('basic') ? n.delete('basic') : n.add('basic'); return n; })} />
             {editProjectSections.has('basic') && (
@@ -1541,10 +1557,11 @@ const f = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    marginTop: 8,
     backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e8edf5',
+  },
+  sectionHeaderClosed: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#e8edf5',
   },
   sectionHeaderLeft: { flex: 1 },
   sectionTitle: { fontSize: 11, fontWeight: '800', color: '#0a0f1c', letterSpacing: 0.8 },
@@ -1554,7 +1571,7 @@ const f = StyleSheet.create({
     backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center',
   },
   sectionChevronOpen: { backgroundColor: GREEN + '14' },
-  sectionBody: { backgroundColor: '#fff', paddingHorizontal: 20, paddingBottom: 20, gap: 0 },
+  sectionBody: { backgroundColor: '#fff', paddingHorizontal: 20, paddingBottom: 20, gap: 0, borderBottomWidth: 1, borderBottomColor: '#e8edf5' },
   row: { flexDirection: 'row' },
   fieldGroup: { marginBottom: 16, marginTop: 4 },
   fieldLabel: { fontSize: 11, fontWeight: '700', color: '#64748b', letterSpacing: 0.5, marginBottom: 8 },

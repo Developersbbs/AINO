@@ -11,7 +11,9 @@ export async function uploadToFirebaseStorage(
     throw new Error('FIREBASE_STORAGE_BUCKET env var is not set');
   }
   const bucket = admin.storage().bucket();
-  const ext = path.extname(originalName) || (mimeType.includes('pdf') ? '.pdf' : '.jpg');
+  const safeMimeType = mimeType || '';
+  const safeName = originalName || 'document';
+  const ext = path.extname(safeName) || (safeMimeType.includes('pdf') ? '.pdf' : '.jpg');
   const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
   const storagePath = `${folder}/${unique}${ext}`;
 

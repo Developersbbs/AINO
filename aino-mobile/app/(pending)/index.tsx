@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Platform } from 'react-native';
 import api from '@/src/api/client';
 import { useAuthStore } from '@/src/stores/useAuthStore';
 import { shadow } from '@/src/lib/shadow';
@@ -75,15 +76,28 @@ export default function PendingScreen() {
       setUploading(true);
 
       const form = new FormData();
-      form.append('file', {
-        uri: asset.uri,
-        name: asset.name ?? 'document',
-        type: asset.mimeType ?? 'application/octet-stream',
-      } as any);
+      
+      if (Platform.OS === 'web') {
+        const webFile: Blob = (asset as any).file
+          ?? await fetch(asset.uri).then((r) => r.blob());
+        const named = new File(
+          [webFile],
+          asset.name ?? 'document',
+          { type: asset.mimeType ?? webFile.type ?? 'application/octet-stream' },
+        );
+        form.append('file', named);
+      } else {
+        form.append('file', {
+          uri: asset.uri,
+          name: asset.name ?? 'document',
+          type: asset.mimeType ?? 'application/octet-stream',
+        } as any);
+      }
+      
       form.append('docType', selectedType);
 
       await api.post('/auth/me/documents', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': undefined },
       });
 
       qc.invalidateQueries({ queryKey: ['me-pending'] });

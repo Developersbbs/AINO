@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,6 @@ import { Feather } from '@expo/vector-icons';
 import { shadow } from '@/src/lib/shadow';
 import { auth } from '@/config/firebase';
 import { signInWithPhoneNumber } from 'firebase/auth';
-import rnAuth from '@react-native-firebase/auth';
 import { setConfirmation } from '@/src/lib/phoneAuth';
 import { useRecaptchaVerifier } from '../../hooks/use-recaptcha-verifier';
 
@@ -40,13 +39,8 @@ export default function LoginScreen() {
 
     try {
       setLoading(true);
-      if (Platform.OS === 'web') {
-        const result = await signInWithPhoneNumber(auth, fullPhone, getVerifier() as any);
-        setConfirmation(result);
-      } else {
-        const confirmation = await rnAuth().signInWithPhoneNumber(fullPhone);
-        setConfirmation(confirmation);
-      }
+      const result = await signInWithPhoneNumber(auth, fullPhone, getVerifier() as any);
+      setConfirmation(result);
       router.push({ pathname: '/(auth)/otp' as any, params: { phone: fullPhone } });
     } catch (err: any) {
       if (Platform.OS === 'web') clearWebVerifier();

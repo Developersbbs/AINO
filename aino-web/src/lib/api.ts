@@ -75,6 +75,9 @@ api.interceptors.response.use(
         api.defaults.headers.common.Authorization = `Bearer ${accessToken}`
         processQueue(null, accessToken)
         originalRequest.headers.Authorization = `Bearer ${accessToken}`
+        if (originalRequest.data instanceof FormData) {
+          delete originalRequest.headers['Content-Type']
+        }
         return api(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)

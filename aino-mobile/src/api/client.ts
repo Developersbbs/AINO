@@ -56,6 +56,9 @@ api.interceptors.response.use(
       flushQueue(null, newToken);
 
       original.headers.Authorization = `Bearer ${newToken}`;
+      if (original.data && original.data.constructor.name === 'FormData') {
+        delete original.headers['Content-Type'];
+      }
       return api(original);
     } catch (err) {
       flushQueue(err, null);

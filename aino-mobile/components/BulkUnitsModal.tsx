@@ -6,7 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '@/src/api/client';
@@ -77,7 +77,7 @@ function UnitRowCard({ row }: Readonly<{ row: ParsedUnitRow }>) {
 
 interface Props { visible: boolean; projectId: string; projectName: string; onClose: () => void }
 
-export default function BulkUnitsModal({ visible, projectId, projectName, onClose }: Props) {
+export default function BulkUnitsModal({ visible, projectId, projectName, onClose }: Readonly<Props>) {
   const insets      = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
@@ -290,7 +290,7 @@ export default function BulkUnitsModal({ visible, projectId, projectName, onClos
                 >
                   <Feather name="plus-circle" size={16} color="#fff" />
                   <Text style={s.actionBtnText}>
-                    Add {validRows.length} Plot{validRows.length !== 1 ? 's' : ''}
+                    Add {validRows.length} Plot{validRows.length === 1 ? '' : 's'}
                   </Text>
                 </TouchableOpacity>
               </View>

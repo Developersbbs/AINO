@@ -16,10 +16,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { auth } from '@/config/firebase';
 import { signInWithPhoneNumber } from 'firebase/auth';
-import rnAuth from '@react-native-firebase/auth';
 import api from '@/src/api/client';
-import { useAuthStore } from '@/src/stores/useAuthStore';
-import type { AuthUser } from '@/src/stores/useAuthStore';
+import { useAuthStore, type AuthUser } from '@/src/stores/useAuthStore';
 import { getConfirmation, setConfirmation, clearConfirmation, consumeDevOtp } from '@/src/lib/phoneAuth';
 import { useRecaptchaVerifier } from '../../hooks/use-recaptcha-verifier';
 import { shadow } from '@/src/lib/shadow';
@@ -115,11 +113,25 @@ async function uploadPendingDocs(accessToken: string): Promise<void> {
   for (const doc of docs) {
     try {
       const fd = new FormData();
-      fd.append('file', { uri: doc.uri, name: doc.name, type: doc.mimeType } as any);
+      if (Platform.OS === 'web') {
+        const webFile: Blob = (doc as any).file
+          ?? await fetch(doc.uri).then((r) => r.blob());
+        const named = new File(
+          [webFile],
+          doc.name ?? 'document',
+          { type: doc.mimeType ?? webFile.type ?? 'application/octet-stream' },
+        );
+        fd.append('file', named);
+      } else {
+        fd.append('file', { uri: doc.uri, name: doc.name, type: doc.mimeType } as any);
+      }
+      
+      fd.append('docType', doc.name);
+      
       await api.post('/auth/me/documents', fd, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': undefined,
         },
       });
     } catch { /* non-fatal — docs can be uploaded later from profile */ }
@@ -251,13 +263,8 @@ export default function OtpScreen() {
 
   const handleResend = async () => {
     try {
-      if (Platform.OS === 'web') {
-        const result = await signInWithPhoneNumber(auth, phone, getVerifier() as any);
-        setConfirmation(result);
-      } else {
-        const confirmation = await rnAuth().signInWithPhoneNumber(phone);
-        setConfirmation(confirmation);
-      }
+      const result = await signInWithPhoneNumber(auth, phone, getVerifier() as any);
+      setConfirmation(result);
       setDigits(new Array(DIGIT_COUNT).fill(''));
       inputs.current[0]?.focus();
       Alert.alert('Sent', 'A new OTP has been sent.');

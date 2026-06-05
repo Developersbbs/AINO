@@ -19,9 +19,14 @@ if (!admin.apps.length) {
     } as admin.ServiceAccount);
   }
 
+  let storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+  if (storageBucket && storageBucket.includes('.firebasestorage.app')) {
+    storageBucket = storageBucket.replace('.firebasestorage.app', '.appspot.com');
+  }
+
   admin.initializeApp({
     credential,
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    storageBucket,
   });
 }
 
