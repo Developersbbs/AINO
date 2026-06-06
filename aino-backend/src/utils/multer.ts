@@ -38,8 +38,7 @@ const docFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
 // Memory storage — buffer passed directly to Firebase Storage
 export const documentUpload = multer({
   storage: multer.memoryStorage(),
-  fileFilter: docFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
 });
 
 // userDocUpload uses memoryStorage so the buffer can be sent to Firebase Storage.
