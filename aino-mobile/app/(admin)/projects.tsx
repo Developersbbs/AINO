@@ -43,8 +43,11 @@ interface Unit {
   id: string; unit_number: string; sq_ft: number; price: number;
   facing: string | null; status: UnitStatus; attributes: Record<string, unknown> | null;
 }
+const PROJECT_DOC_TYPES = ['Floor Plan', 'Site Plan', 'Brochure', 'Approval', 'Legal Doc', 'Other'] as const;
+type ProjectDocType = typeof PROJECT_DOC_TYPES[number];
+
 interface ProjectDoc {
-  name: string; url: string; type: 'pdf' | 'image'; uploadedAt: string;
+  name: string; url: string; type: 'pdf' | 'image'; docType?: string; uploadedAt: string;
 }
 interface ProjectDetail extends Project { units: Unit[]; documents: ProjectDoc[]; config_attributes: ConfigAttr | null }
 
@@ -304,6 +307,7 @@ export default function AdminProjectsScreen() {
 
   const [view, setView] = useState<ScreenView>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedDocType, setSelectedDocType] = useState<ProjectDocType>('Floor Plan');
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [showBulkUnits, setShowBulkUnits] = useState(false);
   const [statusModal, setStatusModal] = useState<Unit | null>(null);
@@ -493,10 +497,11 @@ export default function AdminProjectsScreen() {
   });
 
   const uploadDocMutation = useMutation({
-    mutationFn: ({ uri, name, mimeType }: { uri: string; name: string; mimeType: string }) => {
+    mutationFn: ({ uri, name, mimeType, docType }: { uri: string; name: string; mimeType: string; docType: string }) => {
       const form = new FormData();
       form.append('file', { uri, name, type: mimeType } as any);
       form.append('name', name);
+      form.append('docType', docType);
       return api.post(`/projects/${selectedId}/documents`, form, {
         headers: { 'Content-Type': undefined },
       });
@@ -564,6 +569,7 @@ export default function AdminProjectsScreen() {
       uri: file.uri,
       name: file.name,
       mimeType: file.mimeType ?? 'application/octet-stream',
+      docType: selectedDocType,
     });
   };
 
@@ -1260,18 +1266,36 @@ export default function AdminProjectsScreen() {
               <View style={s.docsSection}>
                 <View style={s.docsSectionHeader}>
                   <Text style={s.docsSectionTitle}>DOCUMENTS</Text>
+                </View>
+
+                {/* Document type selector */}
+                <View style={s.docTypeSection}>
+                  <Text style={s.docTypeLabel}>Document Type</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.typeRow}>
+                    {PROJECT_DOC_TYPES.map((t) => (
+                      <TouchableOpacity
+                        key={t}
+                        style={[s.typePill, selectedDocType === t && s.typePillActive]}
+                        onPress={() => setSelectedDocType(t)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[s.typePillText, selectedDocType === t && s.typePillTextActive]}>{t}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
                   <TouchableOpacity
-                    style={[s.addDocBtn, uploadDocMutation.isPending && s.btnDisabled]}
+                    style={[s.uploadDocBtn, uploadDocMutation.isPending && s.btnDisabled]}
                     onPress={handlePickDocument}
                     disabled={uploadDocMutation.isPending}
-                    activeOpacity={0.8}
+                    activeOpacity={0.85}
                   >
                     {uploadDocMutation.isPending ? (
-                      <ActivityIndicator size="small" color={GREEN} />
+                      <ActivityIndicator color="#fff" />
                     ) : (
                       <>
-                        <Feather name="upload" size={14} color={GREEN} />
-                        <Text style={s.addDocBtnText}>Upload</Text>
+                        <Feather name="upload" size={16} color="#fff" />
+                        <Text style={s.uploadDocBtnText}>Upload {selectedDocType}</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -1284,7 +1308,7 @@ export default function AdminProjectsScreen() {
                   </View>
                 ) : (
                   (project.documents ?? []).map((doc, i) => (
-                    <View key={doc.name} style={s.docRow}>
+                    <View key={`${doc.uploadedAt}-${i}`} style={s.docRow}>
                       <TouchableOpacity
                         style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}
                         activeOpacity={0.7}
@@ -1296,12 +1320,8 @@ export default function AdminProjectsScreen() {
                           }
                         }}
                       >
-                        <View style={[s.docIcon, doc.type === 'pdf' ? s.docIconPdf : s.docIconImg]}>
-                          <Feather
-                            name={doc.type === 'pdf' ? 'file-text' : 'image'}
-                            size={18}
-                            color={doc.type === 'pdf' ? '#ef4444' : '#3b82f6'}
-                          />
+                        <View style={s.docIconWrap}>
+                          <Feather name={doc.type === 'pdf' ? 'file-text' : 'image'} size={16} color={GREEN} />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={s.docName} numberOfLines={1}>{doc.name}</Text>
@@ -1309,6 +1329,11 @@ export default function AdminProjectsScreen() {
                             {new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </Text>
                         </View>
+                        {doc.docType ? (
+                          <View style={s.docLabelBadge}>
+                            <Text style={s.docLabelText}>{doc.docType}</Text>
+                          </View>
+                        ) : null}
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={s.docDeleteBtn}
@@ -1751,34 +1776,40 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   docsSectionHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
   },
   docsSectionTitle: { fontSize: 11, fontWeight: '800', color: '#0a0f1c', letterSpacing: 0.8 },
-  addDocBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
-    borderWidth: 1.5, borderColor: GREEN,
+  docTypeSection: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  docTypeLabel: { fontSize: 11, fontWeight: '700', color: '#94a3b8', letterSpacing: 0.6, marginBottom: 10 },
+  typeRow: { flexDirection: 'row', gap: 8, paddingBottom: 2 },
+  typePill: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#fff',
   },
-  addDocBtnText: { fontSize: 12, fontWeight: '700', color: GREEN },
-  docsEmpty: {
-    alignItems: 'center', paddingVertical: 28, gap: 8,
+  typePillActive: { backgroundColor: GREEN, borderColor: GREEN },
+  typePillText: { fontSize: 12, fontWeight: '600', color: '#64748b' },
+  typePillTextActive: { color: '#fff' },
+  uploadDocBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginTop: 12, paddingVertical: 13, borderRadius: 12, backgroundColor: GREEN,
   },
+  uploadDocBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  docsEmpty: { alignItems: 'center', paddingVertical: 28, gap: 8 },
   docsEmptyText: { fontSize: 13, color: '#94a3b8' },
   docRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 16, paddingVertical: 13,
     borderBottomWidth: 1, borderBottomColor: '#f8fafc',
   },
-  docIcon: {
-    width: 40, height: 40, borderRadius: 12,
+  docIconWrap: {
+    width: 36, height: 36, borderRadius: 10, backgroundColor: '#f0f4ff',
     alignItems: 'center', justifyContent: 'center',
   },
-  docIconPdf: { backgroundColor: '#fef2f2' },
-  docIconImg: { backgroundColor: '#eff6ff' },
   docName: { fontSize: 14, fontWeight: '600', color: '#0a0f1c', marginBottom: 2 },
   docDate: { fontSize: 11, color: '#94a3b8' },
+  docLabelBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6, backgroundColor: '#e0f2fe' },
+  docLabelText: { fontSize: 10, fontWeight: '800', color: '#0369a1' },
   docDeleteBtn: {
     width: 34, height: 34, borderRadius: 10,
     backgroundColor: '#fef2f2', alignItems: 'center', justifyContent: 'center',

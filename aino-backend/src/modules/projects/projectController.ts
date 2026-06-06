@@ -146,6 +146,7 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
       url,
       storagePath,
       type: projectDocType(req.file.mimetype),
+      docType: (req.body.docType as string | undefined)?.trim() || undefined,
       uploadedAt: new Date().toISOString(),
     };
 
