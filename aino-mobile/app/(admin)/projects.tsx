@@ -498,7 +498,7 @@ export default function AdminProjectsScreen() {
       form.append('file', { uri, name, type: mimeType } as any);
       form.append('name', name);
       return api.post(`/projects/${selectedId}/documents`, form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': undefined },
       });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-project', selectedId] }),
