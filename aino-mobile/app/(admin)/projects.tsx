@@ -41,7 +41,7 @@ interface ConfigAttr {
 }
 interface Unit {
   id: string; unit_number: string; sq_ft: number; price: number;
-  facing: string | null; status: UnitStatus; attributes: Record<string, unknown> | null;
+  facing: string | null; road_width: number | null; status: UnitStatus; attributes: Record<string, unknown> | null;
 }
 const PROJECT_DOC_TYPES = ['Floor Plan', 'Site Plan', 'Brochure', 'Approval', 'Legal Doc', 'Other'] as const;
 type ProjectDocType = typeof PROJECT_DOC_TYPES[number];
@@ -67,7 +67,7 @@ interface AddUnitForm {
   nearby_transport: string; distance_main_road: string; booking_notes: string;
 }
 
-type ScreenView = 'list' | 'detail' | 'create' | 'add-unit' | 'edit-project';
+type ScreenView = 'list' | 'detail' | 'create' | 'add-unit' | 'edit-project' | 'edit-unit';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -316,7 +316,8 @@ export default function AdminProjectsScreen() {
   const [ownerPickerVisible, setOwnerPickerVisible] = useState(false);
   const [ownerPickerMode, setOwnerPickerMode] = useState<'create' | 'edit'>('create');
   const [editUnit, setEditUnit] = useState<Unit | null>(null);
-  const [editUnitForm, setEditUnitForm] = useState({ sq_ft: '', price: '', facing: '', road_width: '' });
+  const [editUnitForm, setEditUnitForm] = useState<AddUnitForm>(INITIAL_UNIT_FORM);
+  const [editUnitSections, setEditUnitSections] = useState<Set<string>>(new Set(['required']));
 
   // Create form
   const [form, setForm] = useState<CreateForm>({
@@ -366,6 +367,35 @@ export default function AdminProjectsScreen() {
         }
       }
       // Auto-calculate rate_per_sqft from price ÷ sq_ft
+      if (key === 'sq_ft' || key === 'price') {
+        const sq = Number(key === 'sq_ft' ? val : next.sq_ft);
+        const pr = Number(key === 'price' ? val : prev.price);
+        if (sq > 0 && pr > 0) next.rate_per_sqft = String(Math.round(pr / sq));
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleEditUnitSection = useCallback((s: string) => {
+    setEditUnitSections((prev) => {
+      const n = new Set(prev);
+      n.has(s) ? n.delete(s) : n.add(s);
+      return n;
+    });
+  }, []);
+
+  const setEditUnitField = useCallback(<K extends keyof AddUnitForm>(key: K, val: AddUnitForm[K]) => {
+    setEditUnitForm((prev) => {
+      const next = { ...prev, [key]: val };
+      if (key === 'length' || key === 'width') {
+        const l = Number(key === 'length' ? val : prev.length);
+        const w = Number(key === 'width' ? val : prev.width);
+        if (l > 0 && w > 0) {
+          next.sq_ft = String(l * w);
+          const pr = Number(prev.price);
+          if (pr > 0) next.rate_per_sqft = String(Math.round(pr / (l * w)));
+        }
+      }
       if (key === 'sq_ft' || key === 'price') {
         const sq = Number(key === 'sq_ft' ? val : next.sq_ft);
         const pr = Number(key === 'price' ? val : prev.price);
@@ -545,14 +575,14 @@ export default function AdminProjectsScreen() {
   });
 
   const editUnitMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { sqFt: number; price: number; facing?: string; roadWidth?: number } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { sqFt: number; price: number; facing?: string; roadWidth?: number; attributes?: Record<string, unknown> } }) =>
       api.patch(`/units/${id}`, data),
     onSuccess: (res) => {
       const updated = res.data.data;
       queryClient.setQueryData<ProjectDetail>(['admin-project', selectedId], (old) =>
         old ? { ...old, units: old.units.map((u) => u.id === updated.id ? { ...u, ...updated } : u) } : old,
       );
-      setEditUnit(null);
+      setView('detail');
       Alert.alert('Saved', 'Plot updated successfully.');
     },
     onError: (err: any) => Alert.alert('Error', err.response?.data?.message ?? 'Could not update plot.'),
@@ -625,6 +655,7 @@ export default function AdminProjectsScreen() {
     const price = Number(editUnitForm.price);
     if (isNaN(sqFt) || sqFt <= 0) return Alert.alert('Invalid', 'Enter a valid size (sq ft).');
     if (isNaN(price) || price <= 0) return Alert.alert('Invalid', 'Enter a valid price.');
+    const attrs = buildUnitAttributes(editUnitForm);
     editUnitMutation.mutate({
       id: editUnit.id,
       data: {
@@ -632,18 +663,49 @@ export default function AdminProjectsScreen() {
         price,
         ...(editUnitForm.facing && { facing: editUnitForm.facing }),
         ...(editUnitForm.road_width && { roadWidth: Number(editUnitForm.road_width) }),
+        ...(attrs && { attributes: attrs }),
       },
     });
   };
 
   const openEditUnit = (unit: Unit) => {
+    const a = unit.attributes ?? {};
     setEditUnitForm({
+      unit_number: unit.unit_number,
       sq_ft: String(unit.sq_ft),
       price: String(unit.price),
+      plot_type: String(a.plotType ?? ''),
+      length: String(a.length ?? ''),
+      width: String(a.width ?? ''),
+      dimension_format: String(a.dimensionFormat ?? 'Feet'),
+      rate_per_sqft: String(a.ratePerSqft ?? ''),
       facing: unit.facing ?? '',
-      road_width: '',
+      corner_plot: Boolean(a.cornerPlot),
+      road_width: unit.road_width ? String(unit.road_width) : '',
+      road_type: String(a.roadType ?? ''),
+      plot_shape: String(a.plotShape ?? ''),
+      booking_amount: String(a.bookingAmount ?? ''),
+      commission_percentage: String(a.commissionPercentage ?? ''),
+      registration_ready: Boolean(a.registrationReady),
+      plot_color_status: String(a.plotColorStatus ?? ''),
+      water: Boolean(a.water),
+      electricity: Boolean(a.electricity),
+      drainage: Boolean(a.drainage),
+      street_lights: Boolean(a.streetLights),
+      compound_wall: Boolean(a.compoundWall),
+      park: Boolean(a.park),
+      clubhouse: Boolean(a.clubhouse),
+      security: Boolean(a.security),
+      landmark: String(a.landmark ?? ''),
+      nearby_schools: String(a.nearbySchools ?? ''),
+      nearby_hospitals: String(a.nearbyHospitals ?? ''),
+      nearby_transport: String(a.nearbyTransport ?? ''),
+      distance_main_road: String(a.distanceFromMainRoad ?? ''),
+      booking_notes: String(a.bookingNotes ?? ''),
     });
+    setEditUnitSections(new Set(['required']));
     setEditUnit(unit);
+    setView('edit-unit');
   };
 
   // Computed
@@ -654,6 +716,196 @@ export default function AdminProjectsScreen() {
     return sq > 0 && pr > 0 ? Math.round(pr / sq) : null;
   })();
   const amenityCount = AMENITIES.filter((a) => unitForm[a.key] as boolean).length;
+  const editAmenityCount = AMENITIES.filter((a) => editUnitForm[a.key] as boolean).length;
+  const editCalcRate = (() => {
+    const sq = Number(editUnitForm.sq_ft); const pr = Number(editUnitForm.price);
+    return sq > 0 && pr > 0 ? Math.round(pr / sq) : 0;
+  })();
+
+  // ── EDIT UNIT VIEW ────────────────────────────────────────────────────────
+
+  if (view === 'edit-unit' && editUnit) {
+    return (
+      <SafeAreaView style={s.safe} edges={['top']}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={s.pageHeader}>
+            <TouchableOpacity onPress={() => setView('detail')} style={s.backBtn}>
+              <Feather name="arrow-left" size={20} color="#0a0f1c" />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={s.pageTitle}>Edit Plot</Text>
+              <Text style={s.pageSubtitle} numberOfLines={1}>#{editUnit.unit_number}</Text>
+            </View>
+            <TouchableOpacity
+              style={[s.saveHeaderBtn, editUnitMutation.isPending && s.btnDisabled]}
+              onPress={handleEditUnit}
+              disabled={editUnitMutation.isPending}
+              activeOpacity={0.8}
+            >
+              {editUnitMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={s.saveHeaderBtnText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+            {/* ── Required ── */}
+            <SectionHeader title="REQUIRED DETAILS" isOpen={editUnitSections.has('required')} onToggle={() => toggleEditUnitSection('required')} />
+            {editUnitSections.has('required') && (
+              <View style={f.sectionBody}>
+                <FormField label="PLOT NUMBER" value={editUnitForm.unit_number} onChangeText={(v) => setEditUnitField('unit_number', v)} placeholder="e.g. A-101, Plot-5" />
+                <Text style={f.subLabel}>PLOT TYPE</Text>
+                <ChipSelector options={PLOT_TYPES} selected={editUnitForm.plot_type} onSelect={(v) => setEditUnitField('plot_type', v)} />
+                <View style={f.row}>
+                  <View style={{ flex: 1 }}>
+                    <FormField label="TOTAL SIZE (SQ.FT)" value={editUnitForm.sq_ft} onChangeText={(v) => setEditUnitField('sq_ft', v)} placeholder="e.g. 1200" keyboardType="numeric" />
+                  </View>
+                  <View style={{ width: 12 }} />
+                  <View style={{ flex: 1 }}>
+                    <FormField label="TOTAL PRICE (₹)" value={editUnitForm.price} onChangeText={(v) => setEditUnitField('price', v)} placeholder="e.g. 5000000" keyboardType="numeric" />
+                  </View>
+                </View>
+                {editCalcRate > 0 && (
+                  <View style={f.calcBadge}>
+                    <Feather name="info" size={12} color={GREEN} />
+                    <Text style={f.calcText}>Rate: ₹{editCalcRate.toLocaleString('en-IN')}/sq.ft</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* ── Dimensions ── */}
+            <SectionHeader title="DIMENSIONS" isOpen={editUnitSections.has('dimensions')} onToggle={() => toggleEditUnitSection('dimensions')} hint="Length, Width, Rate/sqft" />
+            {editUnitSections.has('dimensions') && (
+              <View style={f.sectionBody}>
+                <Text style={f.subLabel}>DIMENSION FORMAT</Text>
+                <ChipSelector options={DIM_FORMATS} selected={editUnitForm.dimension_format} onSelect={(v) => setEditUnitField('dimension_format', v || 'Feet')} />
+                <View style={f.row}>
+                  <View style={{ flex: 1 }}>
+                    <FormField label={`LENGTH (${editUnitForm.dimension_format})`} value={editUnitForm.length} onChangeText={(v) => setEditUnitField('length', v)} placeholder="e.g. 40" keyboardType="numeric" />
+                  </View>
+                  <View style={{ width: 12 }} />
+                  <View style={{ flex: 1 }}>
+                    <FormField label={`WIDTH (${editUnitForm.dimension_format})`} value={editUnitForm.width} onChangeText={(v) => setEditUnitField('width', v)} placeholder="e.g. 30" keyboardType="numeric" />
+                  </View>
+                </View>
+                {editUnitForm.length && editUnitForm.width && (
+                  <View style={f.calcBadge}>
+                    <Feather name="maximize" size={12} color={GREEN} />
+                    <Text style={f.calcText}>
+                      Auto-filled Total Size: {(Number(editUnitForm.length) * Number(editUnitForm.width)).toLocaleString('en-IN')} {editUnitForm.dimension_format === 'Meters' ? 'sq.m' : 'sq.ft'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* ── Plot Details ── */}
+            <SectionHeader title="PLOT DETAILS" isOpen={editUnitSections.has('plot')} onToggle={() => toggleEditUnitSection('plot')} hint="Facing, Road, Shape" />
+            {editUnitSections.has('plot') && (
+              <View style={f.sectionBody}>
+                <Text style={f.subLabel}>FACING DIRECTION</Text>
+                <ChipSelector options={FACING_OPTIONS} selected={editUnitForm.facing} onSelect={(v) => setEditUnitField('facing', v)} />
+                <ToggleRow label="Corner Plot" value={editUnitForm.corner_plot} onToggle={() => setEditUnitField('corner_plot', !editUnitForm.corner_plot)} />
+                <View style={f.row}>
+                  <View style={{ flex: 1 }}>
+                    <FormField label="ROAD WIDTH (ft)" value={editUnitForm.road_width} onChangeText={(v) => setEditUnitField('road_width', v)} placeholder="e.g. 30" keyboardType="numeric" optional />
+                  </View>
+                  <View style={{ width: 12 }} />
+                  <View style={{ flex: 1 }}>
+                    <FormField label="PLOT SHAPE" value={editUnitForm.plot_shape} onChangeText={(v) => setEditUnitField('plot_shape', v)} placeholder="e.g. Regular" optional />
+                  </View>
+                </View>
+                <Text style={f.subLabel}>ROAD TYPE</Text>
+                <ChipSelector options={ROAD_TYPES} selected={editUnitForm.road_type} onSelect={(v) => setEditUnitField('road_type', v)} />
+              </View>
+            )}
+
+            {/* ── Financial ── */}
+            <SectionHeader title="FINANCIAL" isOpen={editUnitSections.has('financial')} onToggle={() => toggleEditUnitSection('financial')} hint="Booking amount, Commission" />
+            {editUnitSections.has('financial') && (
+              <View style={f.sectionBody}>
+                <View style={f.row}>
+                  <View style={{ flex: 1 }}>
+                    <FormField label="BOOKING AMOUNT (₹)" value={editUnitForm.booking_amount} onChangeText={(v) => setEditUnitField('booking_amount', v)} placeholder="e.g. 100000" keyboardType="numeric" />
+                  </View>
+                  <View style={{ width: 12 }} />
+                  <View style={{ flex: 1 }}>
+                    <FormField label="COMMISSION (%)" value={editUnitForm.commission_percentage} onChangeText={(v) => setEditUnitField('commission_percentage', v)} placeholder="e.g. 2" keyboardType="numeric" optional />
+                  </View>
+                </View>
+                <ToggleRow label="Registration Ready" value={editUnitForm.registration_ready} onToggle={() => setEditUnitField('registration_ready', !editUnitForm.registration_ready)} />
+                <Text style={[f.subLabel, { marginTop: 14 }]}>PLOT LAYOUT COLOR</Text>
+                <ChipSelector options={PLOT_COLORS} selected={editUnitForm.plot_color_status} onSelect={(v) => setEditUnitField('plot_color_status', v)} />
+              </View>
+            )}
+
+            {/* ── Amenities ── */}
+            <SectionHeader
+              title="AMENITIES"
+              isOpen={editUnitSections.has('amenities')}
+              onToggle={() => toggleEditUnitSection('amenities')}
+              hint={editAmenityCount > 0 ? `${editAmenityCount} selected` : 'Water, Power, Security…'}
+            />
+            {editUnitSections.has('amenities') && (
+              <View style={f.sectionBody}>
+                <View style={f.amenityGrid}>
+                  {AMENITIES.map(({ key, label, icon }) => (
+                    <AmenityChip
+                      key={key}
+                      label={label}
+                      icon={icon}
+                      value={editUnitForm[key] as boolean}
+                      onToggle={() => setEditUnitField(key, !editUnitForm[key])}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* ── Nearby ── */}
+            <SectionHeader title="NEARBY & LOCATION" isOpen={editUnitSections.has('nearby')} onToggle={() => toggleEditUnitSection('nearby')} hint="Schools, Hospital, Transport" />
+            {editUnitSections.has('nearby') && (
+              <View style={f.sectionBody}>
+                <FormField label="LANDMARK" value={editUnitForm.landmark} onChangeText={(v) => setEditUnitField('landmark', v)} placeholder="e.g. Near City Mall" optional />
+                <FormField label="NEARBY SCHOOLS" value={editUnitForm.nearby_schools} onChangeText={(v) => setEditUnitField('nearby_schools', v)} placeholder="e.g. St. Mary's 2km" optional />
+                <FormField label="NEARBY HOSPITALS" value={editUnitForm.nearby_hospitals} onChangeText={(v) => setEditUnitField('nearby_hospitals', v)} placeholder="e.g. Apollo 3km" optional />
+                <FormField label="NEARBY TRANSPORT" value={editUnitForm.nearby_transport} onChangeText={(v) => setEditUnitField('nearby_transport', v)} placeholder="e.g. Bus Stop 500m" optional />
+                <FormField label="DISTANCE FROM MAIN ROAD" value={editUnitForm.distance_main_road} onChangeText={(v) => setEditUnitField('distance_main_road', v)} placeholder="e.g. 200m" optional />
+              </View>
+            )}
+
+            {/* ── Notes ── */}
+            <SectionHeader title="NOTES" isOpen={editUnitSections.has('notes')} onToggle={() => toggleEditUnitSection('notes')} hint="Booking notes, remarks" />
+            {editUnitSections.has('notes') && (
+              <View style={f.sectionBody}>
+                <FormField label="BOOKING NOTES" value={editUnitForm.booking_notes} onChangeText={(v) => setEditUnitField('booking_notes', v)} placeholder="Any remarks about this plot…" multiline optional />
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[s.submitBtn, editUnitMutation.isPending && s.btnDisabled]}
+              onPress={handleEditUnit}
+              disabled={editUnitMutation.isPending}
+              activeOpacity={0.85}
+            >
+              {editUnitMutation.isPending ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={s.submitBtnText}>Save Changes</Text>
+                  <Feather name="check" size={18} color="#fff" />
+                </>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
 
   // ── ADD UNIT VIEW ─────────────────────────────────────────────────────────
 
@@ -1377,65 +1629,6 @@ export default function AdminProjectsScreen() {
           projectName={project?.project_name ?? ''}
           onClose={() => setShowBulkUnits(false)}
         />
-
-        {/* Edit unit modal */}
-        <Modal visible={editUnit !== null} transparent animationType="slide" onRequestClose={() => setEditUnit(null)}>
-          <View style={s.modalOuter}>
-            <Pressable style={s.backdrop} onPress={() => setEditUnit(null)} />
-            <View style={[s.sheet, { paddingBottom: insets.bottom + 24 }]}>
-              <View style={s.sheetHandle} />
-              <Text style={s.sheetTitle}>Edit Plot</Text>
-              <Text style={s.sheetSub}>#{editUnit?.unit_number}</Text>
-              <View style={f.row}>
-                <View style={{ flex: 1 }}>
-                  <FormField
-                    label="SIZE (SQ.FT)"
-                    value={editUnitForm.sq_ft}
-                    onChangeText={(v) => setEditUnitForm((p) => ({ ...p, sq_ft: v }))}
-                    placeholder="e.g. 1200"
-                    keyboardType="numeric"
-                  />
-                </View>
-                <View style={{ width: 12 }} />
-                <View style={{ flex: 1 }}>
-                  <FormField
-                    label="TOTAL PRICE (₹)"
-                    value={editUnitForm.price}
-                    onChangeText={(v) => setEditUnitForm((p) => ({ ...p, price: v }))}
-                    placeholder="e.g. 5000000"
-                    keyboardType="numeric"
-                  />
-                </View>
-              </View>
-              <Text style={f.subLabel}>FACING DIRECTION</Text>
-              <ChipSelector
-                options={FACING_OPTIONS}
-                selected={editUnitForm.facing}
-                onSelect={(v) => setEditUnitForm((p) => ({ ...p, facing: v }))}
-              />
-              <FormField
-                label="ROAD WIDTH (ft)"
-                value={editUnitForm.road_width}
-                onChangeText={(v) => setEditUnitForm((p) => ({ ...p, road_width: v }))}
-                placeholder="e.g. 30"
-                keyboardType="numeric"
-                optional
-              />
-              <TouchableOpacity
-                style={[s.submitBtn, editUnitMutation.isPending && s.btnDisabled]}
-                onPress={handleEditUnit}
-                disabled={editUnitMutation.isPending}
-                activeOpacity={0.85}
-              >
-                {editUnitMutation.isPending ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={s.submitBtnText}>Save Changes</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
 
         {/* Status change modal */}
         <Modal visible={statusModal !== null} transparent animationType="slide" onRequestClose={() => setStatusModal(null)}>

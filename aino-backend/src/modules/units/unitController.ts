@@ -129,19 +129,21 @@ export const getUnit = async (req: Request, res: Response) => {
 // ── PATCH /:id ────────────────────────────────────────────────────────────────
 export const updateUnit = async (req: AuthRequest, res: Response) => {
   try {
-    const { sqFt, price, facing, roadWidth, coordinates } = req.body;
+    const { sqFt, price, facing, roadWidth, coordinates, attributes } = req.body;
 
     const unit = await unitService.updateUnit(String(req.params.id), {
-      sq_ft:      sqFt      != null ? Number(sqFt)      : undefined,
-      price:      price     != null ? Number(price)     : undefined,
-      facing:     facing    !== undefined ? facing       : undefined,
-      road_width: roadWidth != null ? Number(roadWidth) : undefined,
+      sq_ft:       sqFt       != null  ? Number(sqFt)      : undefined,
+      price:       price      != null  ? Number(price)     : undefined,
+      facing:      facing     !== undefined ? facing        : undefined,
+      road_width:  roadWidth  != null  ? Number(roadWidth) : undefined,
       coordinates,
+      attributes,
     });
 
     return apiResponse(res, 200, unit, 'Unit updated');
   } catch (error: any) {
     if (error.code === 'P2025') return apiResponse(res, 404, null, 'Unit not found');
+    if (error.code === 'P2002') return apiResponse(res, 409, null, 'Plot number already exists in this project');
     return apiResponse(res, 500, null, 'Server error');
   }
 };
