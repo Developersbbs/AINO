@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, type ReactNode } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
@@ -24,6 +24,8 @@ interface Unit {
   sqFt: number
   price: number
   status: string
+  roadWidth?: number | null
+  attributes?: Record<string, unknown> | null
 }
 
 interface ProjectDetail {
@@ -73,6 +75,8 @@ function mapUnit(u: Record<string, unknown>): Unit {
     sqFt: ((u.sq_ft ?? u.sqFt ?? 0) as number),
     price: (u.price ?? 0) as number,
     status: (u.status ?? 'Available') as string,
+    roadWidth: (u.road_width ?? u.roadWidth ?? null) as number | null,
+    attributes: (u.attributes ?? null) as Record<string, unknown> | null,
   }
 }
 
@@ -120,6 +124,7 @@ export default function ProjectDetailPage() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<TabType>('overview')
   const [addUnitOpen, setAddUnitOpen] = useState(false)
+  const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null)
   const layoutInputRef = useRef<HTMLInputElement>(null)
   const docsInputRef = useRef<HTMLInputElement>(null)
   const csvInputRef = useRef<HTMLInputElement>(null)
@@ -298,24 +303,28 @@ export default function ProjectDetailPage() {
           {units.length === 0 ? (
             <EmptyState icon={Building2} title="No units yet" description="Add units or bulk import via CSV" />
           ) : (
+            <>
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: '0 0 10px' }}>Click any row to view full plot details</p>
             <Table>
               <Thead>
                 <tr>
-                  <Th>Unit No.</Th><Th>Facing</Th><Th>Size (sqft)</Th><Th>Price</Th><Th>Status</Th>
+                  <Th>Plot No.</Th><Th>Status</Th><Th>Size (sqft)</Th><Th>Price</Th><Th>Facing</Th><Th>Road Width</Th>
                 </tr>
               </Thead>
               <Tbody>
                 {units.map((unit) => (
-                  <Tr key={unit.id}>
-                    <Td><span style={{ fontWeight: 600, color: '#0f172a' }}>{unit.unitNumber}</span></Td>
-                    <Td>{unit.facing || '—'}</Td>
+                  <Tr key={unit.id} onClick={() => setSelectedUnit(unit)}>
+                    <Td><span style={{ fontWeight: 700, color: '#0f172a' }}>{unit.unitNumber}</span></Td>
+                    <Td><Badge status={unit.status} /></Td>
                     <Td>{unit.sqFt?.toLocaleString() ?? '—'}</Td>
                     <Td><span style={{ fontWeight: 600, color: '#059669' }}>{formatCurrency(unit.price)}</span></Td>
-                    <Td><Badge status={unit.status} /></Td>
+                    <Td>{unit.facing || '—'}</Td>
+                    <Td>{unit.roadWidth ? `${unit.roadWidth} ft` : '—'}</Td>
                   </Tr>
                 ))}
               </Tbody>
             </Table>
+            </>
           )}
         </div>
       )}
@@ -348,6 +357,123 @@ export default function ProjectDetailPage() {
           )}
         </div>
       )}
+
+      {/* Plot Detail Modal */}
+      {selectedUnit && (() => {
+        const u = selectedUnit
+        const a = u.attributes ?? {}
+        const calcRate = u.sqFt > 0 ? Math.round(u.price / u.sqFt) : 0
+        const AMENITIES_DISPLAY = [
+          { key: 'water', label: 'Water Supply' }, { key: 'electricity', label: 'Electricity' },
+          { key: 'drainage', label: 'Underground Drainage' }, { key: 'streetLights', label: 'Street Lights' },
+          { key: 'compoundWall', label: 'Compound Wall' }, { key: 'park', label: 'Park Area' },
+          { key: 'clubhouse', label: 'Clubhouse' }, { key: 'security', label: '24/7 Security' },
+        ]
+        const activeAmenities = AMENITIES_DISPLAY.filter(({ key }) => Boolean(a[key]))
+
+        const Row = ({ label, value }: { label: string; value: string }) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{value}</span>
+          </div>
+        )
+        const Section = ({ title, children }: { title: string; children: ReactNode }) => (
+          <div style={{ marginBottom: 20 }}>
+            <p style={{ fontSize: 11, fontWeight: 800, color: '#0a0f1c', letterSpacing: '0.07em', textTransform: 'uppercase', margin: '0 0 12px', paddingBottom: 6, borderBottom: '1px solid #f1f5f9' }}>{title}</p>
+            {children}
+          </div>
+        )
+
+        return (
+          <Modal open onClose={() => setSelectedUnit(null)} title={`Plot ${u.unitNumber}`} size="lg">
+            {/* Stats strip */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 24 }}>
+              {[
+                { label: 'Area', value: `${u.sqFt.toLocaleString()} sqft` },
+                { label: 'Price', value: formatCurrency(u.price) },
+                ...(calcRate > 0 ? [{ label: 'Rate / sqft', value: formatCurrency(calcRate) }] : []),
+              ].map(({ label, value }) => (
+                <div key={label} style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 10, padding: '12px 14px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>{label}</p>
+                  <p style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: 0 }}>{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Plot Info */}
+            <Section title="Plot Info">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+                <Row label="Status" value={u.status} />
+                {u.facing ? <Row label="Facing" value={u.facing} /> : null}
+                {u.roadWidth ? <Row label="Road Width" value={`${u.roadWidth} ft`} /> : null}
+                {a.plotType ? <Row label="Plot Type" value={String(a.plotType)} /> : null}
+                {a.plotShape ? <Row label="Shape" value={String(a.plotShape)} /> : null}
+                {a.cornerPlot ? <Row label="Corner Plot" value="Yes" /> : null}
+                {a.roadType ? <Row label="Road Type" value={String(a.roadType)} /> : null}
+                {a.plotColorStatus ? <Row label="Color Status" value={String(a.plotColorStatus)} /> : null}
+              </div>
+            </Section>
+
+            {/* Dimensions */}
+            {(a.length || a.width || a.ratePerSqft) ? (
+              <Section title="Dimensions">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+                  {a.length ? <Row label={`Length (${String(a.dimensionFormat ?? 'Feet')})`} value={String(a.length)} /> : null}
+                  {a.width ? <Row label={`Width (${String(a.dimensionFormat ?? 'Feet')})`} value={String(a.width)} /> : null}
+                  {a.ratePerSqft ? <Row label="Rate / sqft" value={formatCurrency(Number(a.ratePerSqft))} /> : null}
+                </div>
+              </Section>
+            ) : null}
+
+            {/* Financial */}
+            {(a.bookingAmount || a.commissionPercentage || a.registrationReady) ? (
+              <Section title="Financial">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+                  {a.bookingAmount ? <Row label="Booking Amount" value={formatCurrency(Number(a.bookingAmount))} /> : null}
+                  {a.commissionPercentage ? <Row label="Commission" value={`${String(a.commissionPercentage)}%`} /> : null}
+                  {a.registrationReady ? <Row label="Reg. Ready" value="Yes" /> : null}
+                </div>
+              </Section>
+            ) : null}
+
+            {/* Amenities */}
+            {activeAmenities.length > 0 ? (
+              <Section title="Amenities">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {activeAmenities.map(({ key, label }) => (
+                    <span key={key} style={{ fontSize: 12, fontWeight: 600, color: '#059669', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 6, padding: '4px 10px' }}>{label}</span>
+                  ))}
+                </div>
+              </Section>
+            ) : null}
+
+            {/* Nearby */}
+            {(a.landmark || a.nearbySchools || a.nearbyHospitals || a.nearbyTransport || a.distanceFromMainRoad) ? (
+              <Section title="Nearby">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[
+                    { label: 'Landmark', key: 'landmark' }, { label: 'Schools', key: 'nearbySchools' },
+                    { label: 'Hospitals', key: 'nearbyHospitals' }, { label: 'Transport', key: 'nearbyTransport' },
+                    { label: 'Main Road Distance', key: 'distanceFromMainRoad' },
+                  ].filter(({ key }) => a[key]).map(({ label, key }) => (
+                    <div key={key} style={{ display: 'flex', gap: 12, fontSize: 13, borderBottom: '1px solid #f8fafc', paddingBottom: 6 }}>
+                      <span style={{ fontWeight: 700, color: '#64748b', minWidth: 130 }}>{label}</span>
+                      <span style={{ color: '#0f172a' }}>{String(a[key])}</span>
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            ) : null}
+
+            {/* Notes */}
+            {a.bookingNotes ? (
+              <Section title="Notes">
+                <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, margin: 0 }}>{String(a.bookingNotes)}</p>
+              </Section>
+            ) : null}
+          </Modal>
+        )
+      })()}
 
       {/* Add Unit Modal */}
       <Modal open={addUnitOpen} onClose={() => setAddUnitOpen(false)} title="Add Unit" size="md">

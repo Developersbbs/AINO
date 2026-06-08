@@ -67,7 +67,7 @@ interface AddUnitForm {
   nearby_transport: string; distance_main_road: string; booking_notes: string;
 }
 
-type ScreenView = 'list' | 'detail' | 'create' | 'add-unit' | 'edit-project' | 'edit-unit';
+type ScreenView = 'list' | 'detail' | 'create' | 'add-unit' | 'edit-project' | 'edit-unit' | 'unit-detail';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -262,6 +262,15 @@ function StatItem({ value, label }: Readonly<{ value: string; label: string }>) 
     <View style={s.statItem}>
       <Text style={s.statValue}>{value}</Text>
       <Text style={s.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function DetailCell({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={s.detailGridItem}>
+      <Text style={s.detailLabel}>{label}</Text>
+      <Text style={s.detailValue}>{value}</Text>
     </View>
   );
 }
@@ -721,6 +730,136 @@ export default function AdminProjectsScreen() {
     const sq = Number(editUnitForm.sq_ft); const pr = Number(editUnitForm.price);
     return sq > 0 && pr > 0 ? Math.round(pr / sq) : 0;
   })();
+
+  // ── UNIT DETAIL VIEW ─────────────────────────────────────────────────────
+
+  if (view === 'unit-detail' && editUnit) {
+    const a = (editUnit.attributes ?? {}) as Record<string, unknown>;
+    const statusColor = STATUS_COLOR[editUnit.status];
+    const calcRate = editUnit.sq_ft > 0 ? Math.round(editUnit.price / editUnit.sq_ft) : 0;
+    const activeAmenities = Object.entries(AMENITY_MAP).filter(([k]) => Boolean(a[k]));
+
+    return (
+      <SafeAreaView style={s.safe} edges={['top']}>
+        <View style={s.pageHeader}>
+          <TouchableOpacity onPress={() => setView('detail')} style={s.backBtn}>
+            <Feather name="arrow-left" size={20} color="#0a0f1c" />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={s.pageTitle} numberOfLines={1}>Plot #{editUnit.unit_number}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <View style={[s.statusDot, { backgroundColor: statusColor }]} />
+              <Text style={s.pageSubtitle}>{editUnit.status}</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={s.iconBtn}
+            onPress={() => { setPendingStatus(editUnit.status); setStatusModal(editUnit); }}
+            activeOpacity={0.7}
+          >
+            <Feather name="activity" size={16} color={GREEN} />
+          </TouchableOpacity>
+          <TouchableOpacity style={s.iconBtn} onPress={() => openEditUnit(editUnit)} activeOpacity={0.7}>
+            <Feather name="edit-2" size={16} color={GREEN} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView contentContainerStyle={{ paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
+          {/* Key Stats */}
+          <View style={{ flexDirection: 'row', padding: 16, gap: 10 }}>
+            <View style={s.statChip}>
+              <Text style={s.statChipLabel}>AREA</Text>
+              <Text style={s.statChipValue}>{editUnit.sq_ft.toLocaleString()}</Text>
+              <Text style={s.statChipUnit}>sqft</Text>
+            </View>
+            <View style={s.statChip}>
+              <Text style={s.statChipLabel}>PRICE</Text>
+              <Text style={s.statChipValue} numberOfLines={2}>{formatINR(editUnit.price)}</Text>
+            </View>
+            {calcRate > 0 && (
+              <View style={s.statChip}>
+                <Text style={s.statChipLabel}>RATE/SQFT</Text>
+                <Text style={s.statChipValue} numberOfLines={2}>{'₹'}{calcRate.toLocaleString('en-IN')}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Plot Info */}
+          <View style={[s.sectionCard, s.detailSection]}>
+            <Text style={s.sectionCardTitle}>PLOT INFO</Text>
+            <View style={s.detailGrid}>
+              {editUnit.facing ? <DetailCell label="FACING" value={editUnit.facing} /> : null}
+              {editUnit.road_width ? <DetailCell label="ROAD WIDTH" value={`${editUnit.road_width} ft`} /> : null}
+              {a.plotType ? <DetailCell label="PLOT TYPE" value={String(a.plotType)} /> : null}
+              {a.plotShape ? <DetailCell label="SHAPE" value={String(a.plotShape)} /> : null}
+              {a.cornerPlot ? <DetailCell label="CORNER PLOT" value="Yes" /> : null}
+              {a.roadType ? <DetailCell label="ROAD TYPE" value={String(a.roadType)} /> : null}
+              {a.plotColorStatus ? <DetailCell label="COLOR STATUS" value={String(a.plotColorStatus)} /> : null}
+            </View>
+          </View>
+
+          {/* Dimensions */}
+          {(a.length || a.width || a.ratePerSqft) ? (
+            <View style={[s.sectionCard, s.detailSection]}>
+              <Text style={s.sectionCardTitle}>DIMENSIONS</Text>
+              <View style={s.detailGrid}>
+                {a.length ? <DetailCell label={`LENGTH (${String(a.dimensionFormat ?? 'Feet')})`} value={String(a.length)} /> : null}
+                {a.width ? <DetailCell label={`WIDTH (${String(a.dimensionFormat ?? 'Feet')})`} value={String(a.width)} /> : null}
+                {a.ratePerSqft ? <DetailCell label="RATE/SQFT" value={`₹${Number(a.ratePerSqft).toLocaleString('en-IN')}`} /> : null}
+              </View>
+            </View>
+          ) : null}
+
+          {/* Financial */}
+          {(a.bookingAmount || a.commissionPercentage || a.registrationReady) ? (
+            <View style={[s.sectionCard, s.detailSection]}>
+              <Text style={s.sectionCardTitle}>FINANCIAL</Text>
+              <View style={s.detailGrid}>
+                {a.bookingAmount ? <DetailCell label="BOOKING AMOUNT" value={formatINR(Number(a.bookingAmount))} /> : null}
+                {a.commissionPercentage ? <DetailCell label="COMMISSION" value={`${String(a.commissionPercentage)}%`} /> : null}
+                {a.registrationReady ? <DetailCell label="REG. READY" value="Yes" /> : null}
+              </View>
+            </View>
+          ) : null}
+
+          {/* Amenities */}
+          {activeAmenities.length > 0 ? (
+            <View style={[s.sectionCard, s.detailSection]}>
+              <Text style={s.sectionCardTitle}>AMENITIES</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {activeAmenities.map(([k, am]) => (
+                  <View key={k} style={[s.amenityReadChip, { borderColor: am.color + '55', backgroundColor: am.color + '14' }]}>
+                    <Feather name={am.icon} size={13} color={am.color} />
+                    <Text style={[s.amenityReadText, { color: am.color }]}>{am.label}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {/* Nearby */}
+          {(a.landmark || a.nearbySchools || a.nearbyHospitals || a.nearbyTransport || a.distanceFromMainRoad) ? (
+            <View style={[s.sectionCard, s.detailSection]}>
+              <Text style={s.sectionCardTitle}>NEARBY</Text>
+              {a.landmark ? <View style={s.nearbyRow}><Text style={s.nearbyLabel}>Landmark</Text><Text style={s.nearbyValue}>{String(a.landmark)}</Text></View> : null}
+              {a.nearbySchools ? <View style={s.nearbyRow}><Text style={s.nearbyLabel}>Schools</Text><Text style={s.nearbyValue}>{String(a.nearbySchools)}</Text></View> : null}
+              {a.nearbyHospitals ? <View style={s.nearbyRow}><Text style={s.nearbyLabel}>Hospitals</Text><Text style={s.nearbyValue}>{String(a.nearbyHospitals)}</Text></View> : null}
+              {a.nearbyTransport ? <View style={s.nearbyRow}><Text style={s.nearbyLabel}>Transport</Text><Text style={s.nearbyValue}>{String(a.nearbyTransport)}</Text></View> : null}
+              {a.distanceFromMainRoad ? <View style={s.nearbyRow}><Text style={s.nearbyLabel}>Main Road</Text><Text style={s.nearbyValue}>{String(a.distanceFromMainRoad)}</Text></View> : null}
+            </View>
+          ) : null}
+
+          {/* Notes */}
+          {a.bookingNotes ? (
+            <View style={[s.sectionCard, s.detailSection]}>
+              <Text style={s.sectionCardTitle}>NOTES</Text>
+              <Text style={s.notesText}>{String(a.bookingNotes)}</Text>
+            </View>
+          ) : null}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   // ── EDIT UNIT VIEW ────────────────────────────────────────────────────────
 
@@ -1443,7 +1582,7 @@ export default function AdminProjectsScreen() {
             </View>
           ))}
         </View>
-        <Text style={s.hintText}>Tap to edit · Long-press to change status</Text>
+        <Text style={s.hintText}>Tap to view details · Long-press to change status</Text>
       </View>
     ) : null;
 
@@ -1606,7 +1745,7 @@ export default function AdminProjectsScreen() {
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[s.unitCard, { borderColor: STATUS_COLOR[item.status], backgroundColor: STATUS_BG[item.status] }]}
-                onPress={() => openEditUnit(item)}
+                onPress={() => { setEditUnit(item); setView('unit-detail'); }}
                 onLongPress={() => { setPendingStatus(item.status); setStatusModal(item); }}
                 delayLongPress={400}
                 activeOpacity={0.8}
@@ -2057,4 +2196,24 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   amenityDisplayLabel: { fontSize: 12, color: '#374151', fontWeight: '500', flex: 1 },
+
+  // ── Unit detail view ──
+  detailSection: { marginHorizontal: 16, marginBottom: 10, borderRadius: 14, borderWidth: 1, borderColor: '#e8edf5' },
+  detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
+  detailGridItem: { minWidth: '45%', flex: 1 },
+  detailLabel: { fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 0.6, marginBottom: 4 },
+  detailValue: { fontSize: 14, fontWeight: '600', color: '#0a0f1c' },
+  statChip: {
+    flex: 1, backgroundColor: '#f8fafc', borderRadius: 14, padding: 14,
+    alignItems: 'center', borderWidth: 1, borderColor: '#f1f5f9',
+  },
+  statChipLabel: { fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 0.6 },
+  statChipValue: { fontSize: 15, fontWeight: '900', color: '#0a0f1c', marginTop: 4, textAlign: 'center' },
+  statChipUnit: { fontSize: 10, color: '#64748b', marginTop: 2 },
+  amenityReadChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1 },
+  amenityReadText: { fontSize: 12, fontWeight: '600' },
+  nearbyRow: { flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f8fafc' },
+  nearbyLabel: { fontSize: 12, fontWeight: '700', color: '#64748b', width: 90 },
+  nearbyValue: { flex: 1, fontSize: 13, color: '#0a0f1c', fontWeight: '500' },
+  notesText: { fontSize: 13, color: '#374151', lineHeight: 20 },
 });
