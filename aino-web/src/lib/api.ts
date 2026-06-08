@@ -14,7 +14,7 @@ api.interceptors.request.use((config) => {
   }
   // Let the browser set Content-Type with the multipart boundary for FormData
   if (config.data instanceof FormData) {
-    delete config.headers['Content-Type']
+    config.headers['Content-Type'] = undefined
   }
   return config
 })
@@ -80,7 +80,7 @@ api.interceptors.response.use(
         processQueue(null, accessToken)
         originalRequest.headers.Authorization = `Bearer ${accessToken}`
         if (originalRequest.data instanceof FormData) {
-          delete originalRequest.headers['Content-Type']
+          originalRequest.headers['Content-Type'] = undefined
         }
         return api(originalRequest)
       } catch (refreshError) {

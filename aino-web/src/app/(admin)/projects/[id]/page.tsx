@@ -160,7 +160,7 @@ export default function ProjectDetailPage() {
     mutationFn: (file: File) => {
       const fd = new FormData()
       fd.append('image', file)   // backend: layoutUpload.single('image')
-      return api.post(`/projects/${id}/layout`, fd)
+      return api.post(`/projects/${id}/layout`, fd, { headers: { 'Content-Type': undefined } })
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project', id] }); toast.success('Layout uploaded') },
     onError: (err: unknown) => {
@@ -177,7 +177,7 @@ export default function ProjectDetailPage() {
     mutationFn: (file: File) => {
       const fd = new FormData()
       fd.append('file', file)    // backend: documentUpload.single('file')
-      return api.post(`/projects/${id}/documents`, fd)
+      return api.post(`/projects/${id}/documents`, fd, { headers: { 'Content-Type': undefined } })
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project', id] }); toast.success('Document uploaded') },
     onError: () => toast.error('Failed to upload document'),

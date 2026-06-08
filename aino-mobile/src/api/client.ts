@@ -14,7 +14,7 @@ api.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   // Let React Native set Content-Type with the multipart boundary for FormData
   if (config.data instanceof FormData) {
-    delete config.headers['Content-Type'];
+    config.headers['Content-Type'] = undefined;
   }
   return config;
 });
@@ -61,7 +61,7 @@ api.interceptors.response.use(
 
       original.headers.Authorization = `Bearer ${newToken}`;
       if (original.data && original.data.constructor.name === 'FormData') {
-        delete original.headers['Content-Type'];
+        original.headers['Content-Type'] = undefined;
       }
       return api(original);
     } catch (err) {
