@@ -34,12 +34,24 @@ const AMBER  = '#d97706';
 interface ActionMeta { label: string; color: string; icon: React.ComponentProps<typeof Feather>['name'] }
 
 const ACTION_META: Record<string, ActionMeta> = {
+  // Commission
   GLOBAL_RATE_CHANGE:               { label: 'Global Rate Changed',          color: NAVY,   icon: 'settings' },
   PROJECT_COMMISSION_OVERRIDE:      { label: 'Project Commission Override',  color: MAROON, icon: 'home' },
   PROJECT_BOOKING_AMOUNT_OVERRIDE:  { label: 'Booking Amount Override',      color: AMBER,  icon: 'dollar-sign' },
   PROJECT_OVERRIDE_RESET:           { label: 'Project Override Reset',       color: GRAY,   icon: 'rotate-ccw' },
   AGENT_COMMISSION_OVERRIDE:        { label: 'Agent Commission Override',    color: GREEN,  icon: 'user' },
   AGENT_OVERRIDE_RESET:             { label: 'Agent Override Reset',         color: GRAY,   icon: 'rotate-ccw' },
+  // User management
+  CREATE_AGENT:                     { label: 'Agent Created',                color: GREEN,  icon: 'user-plus' },
+  CREATE_OWNER:                     { label: 'Owner Created',                color: NAVY,   icon: 'user-plus' },
+  APPROVE_AGENT:                    { label: 'Agent Approved',               color: GREEN,  icon: 'check-circle' },
+  REJECT_AGENT:                     { label: 'Agent Rejected',               color: MAROON, icon: 'x-circle' },
+  DEACTIVATE_AGENT:                 { label: 'Agent Deactivated',            color: AMBER,  icon: 'user-x' },
+  APPROVE_OWNER:                    { label: 'Owner Approved',               color: GREEN,  icon: 'check-circle' },
+  DEACTIVATE_OWNER:                 { label: 'Owner Deactivated',            color: AMBER,  icon: 'user-x' },
+  EDIT_USER:                        { label: 'User Profile Updated',         color: NAVY,   icon: 'edit-2' },
+  RESTORE_USER:                     { label: 'User Restored',                color: GREEN,  icon: 'refresh-cw' },
+  PERMANENT_DELETE_USER:            { label: 'User Permanently Deleted',     color: MAROON, icon: 'trash-2' },
 };
 
 function getMeta(action: string): ActionMeta {
@@ -123,7 +135,7 @@ export default function AuditLogScreen() {
         </TouchableOpacity>
         <View style={s.headerCenter}>
           <Text style={s.headerSub}>Admin · System</Text>
-          <Text style={s.headerTitle}>Override Audit Log</Text>
+          <Text style={s.headerTitle}>Activity Log</Text>
         </View>
         <View style={[s.countChip, { backgroundColor: NAVY + '12' }]}>
           <Text style={[s.countChipText, { color: NAVY }]}>
@@ -136,7 +148,7 @@ export default function AuditLogScreen() {
       <View style={s.banner}>
         <Feather name="alert-triangle" size={14} color="#92400e" />
         <Text style={s.bannerText}>
-          This log records all manual overrides. All entries are{' '}
+          Records all admin actions — user management, commission changes, and more. All entries are{' '}
           <Text style={s.bannerBold}>immutable</Text> and cannot be deleted.
         </Text>
       </View>
@@ -165,9 +177,9 @@ export default function AuditLogScreen() {
           ListEmptyComponent={
             <View style={s.empty}>
               <Feather name="clipboard" size={48} color="#cbd5e1" />
-              <Text style={s.emptyTitle}>No overrides yet</Text>
+              <Text style={s.emptyTitle}>No activity yet</Text>
               <Text style={s.emptyHint}>
-                Commission and booking amount overrides will appear here.
+                Admin actions like approving agents, editing users, and commission changes will appear here.
               </Text>
             </View>
           }
