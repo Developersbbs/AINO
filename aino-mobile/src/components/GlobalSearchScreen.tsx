@@ -216,7 +216,7 @@ export default function GlobalSearchScreen() {
   // Role-based filter pills
   const filters: Filter[] = (() => {
     if (user?.role === 'Admin') return ['All', 'Plots', 'Bookings', 'Agents', 'Customers'];
-    if (user?.role === 'Agent') return ['All', 'Plots', 'Bookings', 'Customers'];
+    if (user?.role === 'Agent') return ['All', 'Plots', 'Bookings'];
     return ['All', 'Projects', 'Plots', 'Bookings'];
   })();
 

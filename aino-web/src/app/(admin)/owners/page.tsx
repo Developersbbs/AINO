@@ -44,15 +44,20 @@ export default function OwnersPage() {
     queryFn: async () => {
       const r = await api.get('/admin/owners')
       const raw: Record<string, unknown>[] = Array.isArray(r.data) ? r.data : []
-      return raw.map((o) => ({
-        id: o.id as string,
-        name: o.name as string,
-        phone: o.phone as string,
-        email: o.email as string | undefined,
-        status: o.is_approved ? 'active' : 'pending',
-        projectCount: (o.projectCount as number) ?? 0,
-        createdAt: o.created_at as string,
-      }))
+      return raw.map((o) => {
+        let status = 'pending'
+        if (o.is_approved) status = 'active'
+        else if (o.is_deactivated) status = 'deactivated'
+        return {
+          id: o.id as string,
+          name: o.name as string,
+          phone: o.phone as string,
+          email: o.email as string | undefined,
+          status,
+          projectCount: (o.projectCount as number) ?? 0,
+          createdAt: o.created_at as string,
+        }
+      })
     },
   })
 

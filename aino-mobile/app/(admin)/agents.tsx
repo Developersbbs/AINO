@@ -27,6 +27,7 @@ interface Person {
   phone: string;
   email: string | null;
   is_approved: boolean;
+  is_deactivated: boolean;
   documents: UserDoc[] | null;
   created_at: string;
 }
@@ -60,7 +61,12 @@ function PersonCard({
   person, tab, onPress,
 }: { person: Person; tab: Tab; onPress: () => void }) {
   const { color } = TAB_CONFIG[tab];
-  const accentColor = person.is_approved ? color : AMBER;
+  let accentColor = AMBER;
+  if (person.is_approved) accentColor = color;
+  else if (person.is_deactivated) accentColor = RED;
+  let statusLabel = 'Pending';
+  if (person.is_approved) statusLabel = 'Active';
+  else if (person.is_deactivated) statusLabel = 'Deactivated';
 
   return (
     <TouchableOpacity style={[s.card, { borderTopColor: accentColor }]} onPress={onPress} activeOpacity={0.8}>
@@ -77,9 +83,7 @@ function PersonCard({
         <Text style={s.cardPhoneText} numberOfLines={1}>{person.phone}</Text>
       </View>
       <View style={[s.statusPill, { backgroundColor: accentColor + '14' }]}>
-        <Text style={[s.statusPillText, { color: accentColor }]}>
-          {person.is_approved ? 'Active' : 'Pending'}
-        </Text>
+        <Text style={[s.statusPillText, { color: accentColor }]}>{statusLabel}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -305,7 +309,9 @@ function DetailSheet({
   const insets = useSafeAreaInsets();
   const { color, label } = TAB_CONFIG[tab];
   const [viewingDoc, setViewingDoc] = useState<UserDoc | null>(null);
-  const accentColor = person.is_approved ? color : AMBER;
+  let accentColor = AMBER;
+  if (person.is_approved) accentColor = color;
+  else if (person.is_deactivated) accentColor = RED;
   const docs = person.documents ?? [];
 
   const [editMode, setEditMode] = useState(false);
@@ -313,6 +319,10 @@ function DetailSheet({
   const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [focused, setFocused] = useState<string | null>(null);
+
+  let statusLabel = 'Pending';
+  if (person.is_approved) statusLabel = 'Active';
+  else if (person.is_deactivated) statusLabel = 'Deactivated';
 
   const editMut = useMutation({
     mutationFn: ({ name, email, phone }: { name: string; email: string; phone: string }) =>
@@ -356,7 +366,7 @@ function DetailSheet({
             <View style={[s.sheetStatusBadge, { backgroundColor: accentColor + '14' }]}>
               <View style={[s.sheetStatusDot, { backgroundColor: accentColor }]} />
               <Text style={[s.sheetStatusText, { color: accentColor }]}>
-                {person.is_approved ? 'Active' : 'Pending'}
+                {statusLabel}
               </Text>
             </View>
           </View>
@@ -453,7 +463,7 @@ function DetailSheet({
                   <Feather name="edit-2" size={15} color="#fff" />
                   <Text style={s.sheetBtnText}>Edit</Text>
                 </TouchableOpacity>
-                {!person.is_approved && (
+                {(!person.is_approved && !person.is_deactivated) && (
                   <TouchableOpacity
                     style={[s.sheetBtn, { backgroundColor: GREEN }, approving && s.btnDisabled]}
                     onPress={onApprove}
@@ -470,21 +480,40 @@ function DetailSheet({
                     )}
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity
-                  style={[s.sheetBtn, { backgroundColor: RED }, deactivating && s.btnDisabled]}
-                  onPress={onDeactivate}
-                  disabled={approving || deactivating}
-                  activeOpacity={0.8}
-                >
-                  {deactivating ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <>
-                      <Feather name="slash" size={15} color="#fff" />
-                      <Text style={s.sheetBtnText}>Deactivate</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                {person.is_deactivated && (
+                  <TouchableOpacity
+                    style={[s.sheetBtn, { backgroundColor: GREEN }, approving && s.btnDisabled]}
+                    onPress={onApprove}
+                    disabled={approving || deactivating}
+                    activeOpacity={0.8}
+                  >
+                    {approving ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Feather name="refresh-cw" size={15} color="#fff" />
+                        <Text style={s.sheetBtnText}>Reactivate</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+                {person.is_approved && (
+                  <TouchableOpacity
+                    style={[s.sheetBtn, { backgroundColor: RED }, deactivating && s.btnDisabled]}
+                    onPress={onDeactivate}
+                    disabled={approving || deactivating}
+                    activeOpacity={0.8}
+                  >
+                    {deactivating ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Feather name="slash" size={15} color="#fff" />
+                        <Text style={s.sheetBtnText}>Deactivate</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             </>
           )}
@@ -538,7 +567,7 @@ export default function TeamScreen() {
       await queryClient.cancelQueries({ queryKey: ['admin-agents'] });
       const prev = queryClient.getQueryData<Person[]>(['admin-agents']);
       queryClient.setQueryData<Person[]>(['admin-agents'], (old) =>
-        old?.map((p) => p.id === id ? { ...p, is_approved: true } : p));
+        old?.map((p) => p.id === id ? { ...p, is_approved: true, is_deactivated: false } : p));
       return { prev };
     },
     onError: (err: any, _, ctx) => {
@@ -554,7 +583,7 @@ export default function TeamScreen() {
       await queryClient.cancelQueries({ queryKey: ['admin-agents'] });
       const prev = queryClient.getQueryData<Person[]>(['admin-agents']);
       queryClient.setQueryData<Person[]>(['admin-agents'], (old) =>
-        old?.map((p) => p.id === id ? { ...p, is_approved: false } : p));
+        old?.map((p) => p.id === id ? { ...p, is_approved: false, is_deactivated: true } : p));
       return { prev };
     },
     onError: (err: any, _, ctx) => {
@@ -570,7 +599,7 @@ export default function TeamScreen() {
       await queryClient.cancelQueries({ queryKey: ['admin-owners'] });
       const prev = queryClient.getQueryData<Person[]>(['admin-owners']);
       queryClient.setQueryData<Person[]>(['admin-owners'], (old) =>
-        old?.map((p) => p.id === id ? { ...p, is_approved: true } : p));
+        old?.map((p) => p.id === id ? { ...p, is_approved: true, is_deactivated: false } : p));
       return { prev };
     },
     onError: (err: any, _, ctx) => {
@@ -586,7 +615,7 @@ export default function TeamScreen() {
       await queryClient.cancelQueries({ queryKey: ['admin-owners'] });
       const prev = queryClient.getQueryData<Person[]>(['admin-owners']);
       queryClient.setQueryData<Person[]>(['admin-owners'], (old) =>
-        old?.map((p) => p.id === id ? { ...p, is_approved: false } : p));
+        old?.map((p) => p.id === id ? { ...p, is_approved: false, is_deactivated: true } : p));
       return { prev };
     },
     onError: (err: any, _, ctx) => {

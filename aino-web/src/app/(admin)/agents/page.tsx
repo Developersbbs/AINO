@@ -44,15 +44,20 @@ export default function AgentsPage() {
     queryFn: async () => {
       const r = await api.get('/admin/agents')
       const raw: Record<string, unknown>[] = Array.isArray(r.data) ? r.data : []
-      return raw.map((a) => ({
-        id: a.id as string,
-        name: a.name as string,
-        phone: a.phone as string,
-        email: a.email as string | undefined,
-        status: a.is_approved ? 'active' : 'pending',
-        totalLeads: (a.totalLeads as number) ?? 0,
-        createdAt: a.created_at as string,
-      }))
+      return raw.map((a) => {
+        let status = 'pending'
+        if (a.is_approved) status = 'active'
+        else if (a.is_deactivated) status = 'deactivated'
+        return {
+          id: a.id as string,
+          name: a.name as string,
+          phone: a.phone as string,
+          email: a.email as string | undefined,
+          status,
+          totalLeads: (a.totalLeads as number) ?? 0,
+          createdAt: a.created_at as string,
+        }
+      })
     },
   })
 

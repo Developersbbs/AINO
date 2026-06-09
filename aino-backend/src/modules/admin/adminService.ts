@@ -37,6 +37,7 @@ export const getAllAgents = () => {
       email: true,
       role: true,
       is_approved: true,
+      is_deactivated: true,
       documents: true,
       created_at: true,
     },
@@ -47,8 +48,8 @@ export const getAllAgents = () => {
 export const approveAgent = async (id: string) => {
   const user = await prisma.user.update({
     where: { id },
-    data: { is_approved: true },
-    select: { id: true, name: true, phone: true, role: true, is_approved: true },
+    data: { is_approved: true, is_deactivated: false },
+    select: { id: true, name: true, phone: true, role: true, is_approved: true, is_deactivated: true },
   });
   void createNotification(
     id,
@@ -69,8 +70,8 @@ export const rejectAgent = async (id: string) => {
 export const deactivateAgent = (id: string) => {
   return prisma.user.update({
     where: { id },
-    data: { is_approved: false },
-    select: { id: true, name: true, phone: true, role: true, is_approved: true },
+    data: { is_approved: false, is_deactivated: true },
+    select: { id: true, name: true, phone: true, role: true, is_approved: true, is_deactivated: true },
   });
 };
 
@@ -83,6 +84,7 @@ export const getAllOwners = () => {
       phone: true,
       email: true,
       is_approved: true,
+      is_deactivated: true,
       documents: true,
       created_at: true,
     },
@@ -101,7 +103,7 @@ export const getRecycleBin = () => {
 export const restoreUser = (id: string) => {
   return prisma.user.update({
     where: { id },
-    data: { deleted_at: null, is_approved: true },
+    data: { deleted_at: null, is_approved: true, is_deactivated: false },
     select: { id: true, name: true, role: true },
   });
 };
