@@ -8,7 +8,7 @@ export const globalSearch = async (query: string, userId: string, role: UserRole
   if (q.length < 2) return { projects: [], plots: [], bookings: [], people: [] };
 
   if (role === UserRole.Admin) {
-    const [projects, plots, bookings, agents, customers] = await Promise.all([
+    const [projects, plots, bookings, agents] = await Promise.all([
       // Projects
       prisma.project.findMany({
         where: {
@@ -68,15 +68,6 @@ export const globalSearch = async (query: string, userId: string, role: UserRole
         },
         take: 5,
       }),
-      // Customers (unique from bookings)
-      prisma.booking.findMany({
-        where: {
-          OR: [{ customer_name: ilike(q) }, { customer_phone: ilike(q) }],
-        },
-        select: { customer_name: true, customer_phone: true },
-        distinct: ['customer_phone'],
-        take: 5,
-      }),
     ]);
 
     return {
@@ -95,18 +86,11 @@ export const globalSearch = async (query: string, userId: string, role: UserRole
         unitNumber: b.unit.unit_number,
         projectName: b.unit.project.project_name,
       })),
-      people: [
-        ...agents.map((a) => ({
-          id: a.id, name: a.name, phone: a.phone,
-          type: 'Agent' as const, isActive: a.is_approved,
-          sales: a._count.bookings,
-        })),
-        ...customers.map((c) => ({
-          id: `cust-${c.customer_phone}`, name: c.customer_name,
-          phone: c.customer_phone, type: 'Customer' as const,
-          isActive: true, sales: 0,
-        })),
-      ],
+      people: agents.map((a) => ({
+        id: a.id, name: a.name, phone: a.phone,
+        type: 'Agent' as const, isActive: a.is_approved,
+        sales: a._count.bookings,
+      })),
     };
   }
 
@@ -144,10 +128,6 @@ export const globalSearch = async (query: string, userId: string, role: UserRole
       }),
     ]);
 
-    const customers = [...new Map(
-      bookings.map((b) => [b.customer_phone, { customer_name: b.customer_name, customer_phone: b.customer_phone }]),
-    ).values()];
-
     return {
       projects: [],
       plots: plots.map((u) => ({
@@ -160,11 +140,7 @@ export const globalSearch = async (query: string, userId: string, role: UserRole
         date: b.booking_date, status: b.status,
         unitNumber: b.unit.unit_number, projectName: b.unit.project.project_name,
       })),
-      people: customers.map((c) => ({
-        id: `cust-${c.customer_phone}`, name: c.customer_name,
-        phone: c.customer_phone, type: 'Customer' as const,
-        isActive: true, sales: 0,
-      })),
+      people: [],
     };
   }
 

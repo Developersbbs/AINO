@@ -32,7 +32,7 @@ interface SearchBooking {
 }
 interface SearchPerson {
   id: string; name: string; phone: string;
-  type: 'Agent' | 'Customer'; isActive: boolean; sales: number;
+  type: 'Agent'; isActive: boolean; sales: number;
 }
 interface SearchResults {
   projects: SearchProject[];
@@ -41,7 +41,7 @@ interface SearchResults {
   people: SearchPerson[];
 }
 
-type Filter = 'All' | 'Plots' | 'Bookings' | 'Agents' | 'Customers' | 'Projects';
+type Filter = 'All' | 'Plots' | 'Bookings' | 'Agents' | 'Projects';
 
 const STATUS_COLOR: Record<string, string> = {
   Available: GREEN,
@@ -146,22 +146,18 @@ function BookingRow({ item }: Readonly<{ item: SearchBooking }>) {
 }
 
 function PersonRow({ item }: Readonly<{ item: SearchPerson }>) {
-  const isAgent = item.type === 'Agent';
-  const color = isAgent ? NAVY : '#7c3aed';
   const initials = item.name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase();
   return (
     <View style={s.row}>
-      <View style={[s.rowAvatar, { backgroundColor: color + '14' }]}>
-        <Text style={[s.rowAvatarText, { color }]}>{initials}</Text>
+      <View style={[s.rowAvatar, { backgroundColor: NAVY + '14' }]}>
+        <Text style={[s.rowAvatarText, { color: NAVY }]}>{initials}</Text>
       </View>
       <View style={s.rowBody}>
         <Text style={s.rowTitle} numberOfLines={1}>
-          {item.name} — <Text style={{ color, fontWeight: '600' }}>{item.type}</Text>
+          {item.name} — <Text style={{ color: NAVY, fontWeight: '600' }}>Agent</Text>
         </Text>
         <Text style={s.rowSub}>
-          {item.phone}
-          {isAgent ? ` · ${item.sales} bookings` : ''}
-          {isAgent ? ` · ${item.isActive ? 'Active' : 'Inactive'}` : ''}
+          {item.phone} · {item.sales} bookings · {item.isActive ? 'Active' : 'Inactive'}
         </Text>
       </View>
     </View>
@@ -215,23 +211,25 @@ export default function GlobalSearchScreen() {
 
   // Role-based filter pills
   const filters: Filter[] = (() => {
-    if (user?.role === 'Admin') return ['All', 'Plots', 'Bookings', 'Agents', 'Customers'];
+    if (user?.role === 'Admin') return ['All', 'Plots', 'Bookings', 'Agents'];
     if (user?.role === 'Agent') return ['All', 'Plots', 'Bookings'];
     return ['All', 'Projects', 'Plots', 'Bookings'];
   })();
 
-  const agents = results.people.filter((p) => p.type === 'Agent');
-  const customers = results.people.filter((p) => p.type === 'Customer');
+  const agents = results.people;
 
-  const showProjects  = activeFilter === 'All' || activeFilter === 'Projects';
-  const showPlots     = activeFilter === 'All' || activeFilter === 'Plots';
-  const showBookings  = activeFilter === 'All' || activeFilter === 'Bookings';
-  const showAgents    = activeFilter === 'All' || activeFilter === 'Agents';
-  const showCustomers = activeFilter === 'All' || activeFilter === 'Customers';
+  const showProjects = activeFilter === 'All' || activeFilter === 'Projects';
+  const showPlots    = activeFilter === 'All' || activeFilter === 'Plots';
+  const showBookings = activeFilter === 'All' || activeFilter === 'Bookings';
+  const showAgents   = activeFilter === 'All' || activeFilter === 'Agents';
 
   const hasResults =
     results.projects.length > 0 || results.plots.length > 0 ||
     results.bookings.length > 0 || results.people.length > 0;
+
+  let searchHint = 'Find plots and bookings';
+  if (user?.role === 'Admin') searchHint = 'Find plots, bookings, agents';
+  else if (user?.role === 'Owner') searchHint = 'Find plots, bookings and projects';
 
   const clearSearch = useCallback(() => {
     setQuery('');
@@ -280,9 +278,7 @@ export default function GlobalSearchScreen() {
           <View style={s.emptyState}>
             <Feather name="search" size={40} color="#e2e8f0" />
             <Text style={s.emptyTitle}>Search anything</Text>
-            <Text style={s.emptySub}>
-              Find plots, bookings, agents{user?.role === 'Owner' ? ' and projects' : ', customers'}
-            </Text>
+            <Text style={s.emptySub}>{searchHint}</Text>
           </View>
         )}
 
@@ -334,14 +330,6 @@ export default function GlobalSearchScreen() {
           <View style={s.section}>
             <SectionHeader title="AGENTS" count={agents.length} />
             {agents.map((item) => <PersonRow key={item.id} item={item} />)}
-          </View>
-        )}
-
-        {/* Customers */}
-        {showCustomers && customers.length > 0 && (
-          <View style={s.section}>
-            <SectionHeader title="CUSTOMERS" count={customers.length} />
-            {customers.map((item) => <PersonRow key={item.id} item={item} />)}
           </View>
         )}
 
