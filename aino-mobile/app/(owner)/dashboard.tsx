@@ -290,9 +290,8 @@ export default function OwnerDashboard() {
           </View>
           <View style={s.headerContent}>
             <View style={s.bannerLeft}>
-              <Text style={s.bannerRole}>PORTFOLIO OWNER</Text>
+              <Text style={s.bannerRole}>OWNER</Text>
               <Text style={s.bannerName}>{user?.name ?? 'Owner'}</Text>
-              <Text style={s.bannerSub}>Real Estate Portfolio & Sales Desk</Text>
             </View>
             <View style={s.headerRight}>
               <TouchableOpacity style={s.bellBtn} onPress={() => router.push('/(owner)/notifications')}>

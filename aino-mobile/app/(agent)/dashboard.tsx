@@ -48,12 +48,6 @@ function getInitials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
 }
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-}
 
 const SHARE_BASE = process.env.EXPO_PUBLIC_SHARE_URL ?? 'http://localhost:3002';
 function shareUrl(token: string) {
@@ -277,11 +271,10 @@ export default function AgentDashboard() {
           </View>
           <View style={s.headerContent}>
             <View style={s.bannerLeft}>
-              <Text style={s.greeting}>{getGreeting()}</Text>
               <Text style={s.name}>{user?.name ?? 'Agent'}</Text>
               <View style={s.rolePill}>
                 <View style={s.roleDot} />
-                <Text style={s.roleText}>Verified Sales Partner</Text>
+                <Text style={s.roleText}>Sales Agent</Text>
               </View>
             </View>
             <View style={s.headerRight}>
