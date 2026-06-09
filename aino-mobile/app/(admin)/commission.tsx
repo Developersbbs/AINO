@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/src/api/client';
 import { shadow } from '@/src/lib/shadow';
@@ -297,6 +298,9 @@ export default function CommissionConfigScreen() {
     <SafeAreaView style={st.safe} edges={['top']}>
       {/* Header */}
       <View style={st.header}>
+        <TouchableOpacity style={st.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <Feather name="arrow-left" size={20} color="#fff" />
+        </TouchableOpacity>
         <View>
           <Text style={st.headerSmall}>Admin · Platform Settings</Text>
           <Text style={st.headerTitle}>Commission Config</Text>
@@ -505,12 +509,18 @@ const st = StyleSheet.create({
 
   header: {
     backgroundColor: NAVY,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 18,
+  },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
   },
   headerSmall: { fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: '600', letterSpacing: 0.5, marginBottom: 2 },
-  headerTitle: { fontSize: 24, fontWeight: '900', color: '#fff' },
+  headerTitle: { fontSize: 22, fontWeight: '900', color: '#fff' },
 
   scroll: { padding: 16, paddingBottom: 48 },
 

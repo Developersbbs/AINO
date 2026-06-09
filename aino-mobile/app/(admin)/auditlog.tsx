@@ -4,6 +4,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import api from '@/src/api/client';
 import { shadow } from '@/src/lib/shadow';
 
@@ -117,7 +118,10 @@ export default function AuditLogScreen() {
     <SafeAreaView style={s.safe} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
-        <View>
+        <TouchableOpacity style={s.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <Feather name="arrow-left" size={20} color="#0a0f1c" />
+        </TouchableOpacity>
+        <View style={s.headerCenter}>
           <Text style={s.headerSub}>Admin · System</Text>
           <Text style={s.headerTitle}>Override Audit Log</Text>
         </View>
@@ -180,12 +184,17 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#f5f7fa' },
 
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 18, paddingBottom: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e8edf5',
   },
-  headerSub: { fontSize: 11, fontWeight: '600', color: '#94a3b8', letterSpacing: 0.5, marginBottom: 3 },
-  headerTitle: { fontSize: 22, fontWeight: '900', color: '#0a0f1c' },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 12,
+    backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center',
+  },
+  headerCenter: { flex: 1 },
+  headerSub: { fontSize: 11, fontWeight: '600', color: '#94a3b8', letterSpacing: 0.5, marginBottom: 2 },
+  headerTitle: { fontSize: 18, fontWeight: '900', color: '#0a0f1c' },
   countChip: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
   },
