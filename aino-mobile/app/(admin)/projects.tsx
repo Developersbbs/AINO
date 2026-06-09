@@ -37,6 +37,8 @@ type UnitStatus = 'Available' | 'Booked' | 'Sold';
 interface ConfigAttr {
   approvalType?: string;
   approvalAuthority?: string;
+  approvalNumber?: string;
+  block?: string;
   [key: string]: unknown;
 }
 interface Unit {
@@ -1551,6 +1553,26 @@ export default function AdminProjectsScreen() {
               </>
             )}
           </TouchableOpacity>
+        )}
+
+        {/* Project Info */}
+        {(project.owner || cfg?.block || cfg?.approvalAuthority || cfg?.approvalNumber || cfg?.approvalType) && (
+          <View style={s.sectionCard}>
+            <Text style={s.sectionCardTitle}>PROJECT DETAILS</Text>
+            <View style={s.detailGrid}>
+              {project.owner && (
+                <View style={[s.detailGridItem, { minWidth: '100%', marginBottom: 4 }]}>
+                  <Text style={s.detailLabel}>OWNER</Text>
+                  <Text style={s.detailValue}>{project.owner.name}</Text>
+                  <Text style={[s.detailLabel, { marginTop: 2 }]}>{project.owner.phone}</Text>
+                </View>
+              )}
+              {cfg?.block ? <DetailCell label="BLOCK / PHASE" value={cfg.block} /> : null}
+              {cfg?.approvalAuthority ? <DetailCell label="APPROVAL AUTHORITY" value={cfg.approvalAuthority} /> : null}
+              {cfg?.approvalType ? <DetailCell label="APPROVAL TYPE" value={cfg.approvalType} /> : null}
+              {cfg?.approvalNumber ? <DetailCell label="APPROVAL NUMBER" value={cfg.approvalNumber} /> : null}
+            </View>
+          </View>
         )}
 
         {amenities.length > 0 && (

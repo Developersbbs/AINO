@@ -38,8 +38,16 @@ interface ProjectDetail {
   availableUnits: number
   priceMin?: number
   priceMax?: number
-  owner?: { id: string; name: string }
+  owner?: { id: string; name: string; phone?: string }
   layoutUrl?: string
+  reraNumber?: string
+  configAttributes?: {
+    block?: string
+    approvalAuthority?: string
+    approvalNumber?: string
+    approvalType?: string
+    [key: string]: unknown
+  }
   documents: Array<{ name: string; url: string; uploadedAt?: string; createdAt?: string }>
 }
 
@@ -109,6 +117,8 @@ function mapProject(p: Record<string, unknown>): ProjectDetail {
     priceMin: prices.length ? Math.min(...prices) : undefined,
     priceMax: prices.length ? Math.max(...prices) : undefined,
     owner: p.owner as ProjectDetail['owner'],
+    reraNumber: (p.rera_number ?? p.reraNumber ?? '') as string | undefined,
+    configAttributes: (p.config_attributes ?? p.configAttributes ?? null) as ProjectDetail['configAttributes'],
     layoutUrl: toAbsoluteUrl((p.layout_image_url ?? p.layoutUrl) as string | undefined),
     documents: docs.map((d) => ({
       name: (d.name ?? d.docType ?? 'Document') as string,
@@ -276,14 +286,57 @@ export default function ProjectDetailPage() {
 
       {/* Overview Tab */}
       {tab === 'overview' && (
-        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: 24 }}>
-          <p style={{ fontWeight: 600, color: '#0f172a', margin: '0 0 10px' }}>Description</p>
-          <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, margin: 0 }}>{project.description || 'No description provided.'}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Project Details Card */}
+          <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: 24 }}>
+            <p style={{ fontSize: 11, fontWeight: 800, color: '#0a0f1c', letterSpacing: '0.07em', textTransform: 'uppercase', margin: '0 0 16px', paddingBottom: 10, borderBottom: '1px solid #f1f5f9' }}>Project Details</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16 }}>
+              {project.owner && (
+                <div>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>Owner</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: 0 }}>{project.owner.name}</p>
+                  {project.owner.phone && <p style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0' }}>{project.owner.phone}</p>}
+                </div>
+              )}
+              {project.reraNumber && (
+                <div>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>RERA Number</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: 0 }}>{project.reraNumber}</p>
+                </div>
+              )}
+              {project.configAttributes?.block && (
+                <div>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>Block / Phase</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: 0 }}>{project.configAttributes.block}</p>
+                </div>
+              )}
+              {project.configAttributes?.approvalAuthority && (
+                <div>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>Approval Authority</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: 0 }}>{project.configAttributes.approvalAuthority}</p>
+                </div>
+              )}
+              {project.configAttributes?.approvalType && (
+                <div>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>Approval Type</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: 0 }}>{project.configAttributes.approvalType}</p>
+                </div>
+              )}
+              {project.configAttributes?.approvalNumber && (
+                <div>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>Approval Number</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: 0 }}>{project.configAttributes.approvalNumber}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Layout image */}
           {project.layoutUrl && (
-            <div style={{ marginTop: 20 }}>
-              <p style={{ fontWeight: 600, color: '#0f172a', margin: '0 0 10px' }}>Layout</p>
+            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: 24 }}>
+              <p style={{ fontSize: 11, fontWeight: 800, color: '#0a0f1c', letterSpacing: '0.07em', textTransform: 'uppercase', margin: '0 0 12px' }}>Layout Image</p>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={project.layoutUrl} alt="Layout" style={{ borderRadius: 10, border: '1px solid #e2e8f0', maxWidth: '100%', maxHeight: 384, objectFit: 'contain' }} />
+              <img src={project.layoutUrl} alt="Layout" style={{ borderRadius: 10, border: '1px solid #e2e8f0', maxWidth: '100%', maxHeight: 420, objectFit: 'contain', display: 'block' }} />
             </div>
           )}
         </div>
