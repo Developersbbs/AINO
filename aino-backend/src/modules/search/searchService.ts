@@ -59,6 +59,7 @@ export const globalSearch = async (query: string, userId: string, role: UserRole
       prisma.user.findMany({
         where: {
           role: UserRole.Agent,
+          deleted_at: null,
           OR: [{ name: ilike(q) }, { phone: ilike(q) }],
         },
         select: {

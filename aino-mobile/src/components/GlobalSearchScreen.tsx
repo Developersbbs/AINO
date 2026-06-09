@@ -203,11 +203,12 @@ export default function GlobalSearchScreen() {
   const [activeFilter, setActiveFilter] = useState<Filter>('All');
   const inputRef = useRef<TextInput>(null);
 
-  const { data, isFetching } = useQuery<SearchResults>({
+  const { data, isFetching, isError, refetch } = useQuery<SearchResults>({
     queryKey: ['global-search', query],
     queryFn: () => api.get('/search', { params: { q: query } }).then((r) => r.data),
     enabled: query.trim().length >= 2,
     staleTime: 10_000,
+    retry: 1,
   });
 
   const results = data ?? { projects: [], plots: [], bookings: [], people: [] };
@@ -285,7 +286,18 @@ export default function GlobalSearchScreen() {
           </View>
         )}
 
-        {query.trim().length >= 2 && !isFetching && !hasResults && (
+        {query.trim().length >= 2 && !isFetching && isError && (
+          <View style={s.emptyState}>
+            <Feather name="wifi-off" size={40} color="#fca5a5" />
+            <Text style={s.emptyTitle}>Search failed</Text>
+            <Text style={s.emptySub}>Could not reach the server. Check your connection.</Text>
+            <TouchableOpacity style={s.retryBtn} onPress={() => refetch()} activeOpacity={0.8}>
+              <Text style={s.retryText}>Try again</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {query.trim().length >= 2 && !isFetching && !isError && !hasResults && (
           <View style={s.emptyState}>
             <Feather name="inbox" size={40} color="#e2e8f0" />
             <Text style={s.emptyTitle}>No results</Text>
@@ -390,6 +402,11 @@ const s = StyleSheet.create({
   },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#0a0f1c' },
   emptySub: { fontSize: 14, color: '#94a3b8', textAlign: 'center', paddingHorizontal: 24 },
+  retryBtn: {
+    marginTop: 12, paddingHorizontal: 24, paddingVertical: 10,
+    backgroundColor: NAVY, borderRadius: 20,
+  },
+  retryText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 
   section: {
     backgroundColor: '#fff', borderRadius: 18,

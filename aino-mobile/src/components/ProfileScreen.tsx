@@ -320,10 +320,12 @@ export default function ProfileScreen() {
           </View>
           <Text style={s.heroRole}>{roleLabel}</Text>
           <Text style={s.heroName}>{user.name}</Text>
-          <View style={s.heroPill}>
-            <Feather name="phone" size={12} color="rgba(255,255,255,0.7)" />
-            <Text style={s.heroPillText}>{user.phone}</Text>
-          </View>
+          {user.role !== 'Admin' && (
+            <View style={s.heroPill}>
+              <Feather name="phone" size={12} color="rgba(255,255,255,0.7)" />
+              <Text style={s.heroPillText}>{user.phone}</Text>
+            </View>
+          )}
         </View>
 
         {/* ── Content card ── */}
