@@ -311,11 +311,13 @@ export default function ProfileScreen() {
           <TouchableOpacity style={s.heroBack} onPress={() => router.back()} activeOpacity={0.7}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </TouchableOpacity>
-          <Image
-            source={require('@/assets/images/aino-logo.png')}
-            style={s.heroLogo}
-            resizeMode="contain"
-          />
+          <View style={s.heroLogoWrap}>
+            <Image
+              source={require('@/assets/images/aino-logo.png')}
+              style={s.heroLogo}
+              resizeMode="contain"
+            />
+          </View>
           <Text style={s.heroRole}>{roleLabel}</Text>
           <Text style={s.heroName}>{user.name}</Text>
           <View style={s.heroPill}>
@@ -579,7 +581,13 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center', justifyContent: 'center',
   },
-  heroLogo: { width: 80, height: 80, marginBottom: 16 },
+  heroLogoWrap: {
+    width: 90, height: 90, borderRadius: 45,
+    backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16,
+  },
+  heroLogo: { width: 72, height: 72 },
   heroRole: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.65)', letterSpacing: 1.5, marginBottom: 6 },
   heroName: { fontSize: 26, fontWeight: '900', color: '#fff', marginBottom: 12 },
   heroPill: {
