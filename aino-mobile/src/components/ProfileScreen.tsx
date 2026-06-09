@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/src/stores/useAuthStore';
@@ -128,6 +129,7 @@ function DocRow({ doc, index, onDelete, deleting }: Readonly<{
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { user, logout, updateUser } = useAuthStore();
   const qc = useQueryClient();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -306,6 +308,9 @@ export default function ProfileScreen() {
       >
         {/* ── Hero banner ── */}
         <View style={[s.hero, { backgroundColor: roleColor }]}>
+          <TouchableOpacity style={s.heroBack} onPress={() => router.back()} activeOpacity={0.7}>
+            <Feather name="arrow-left" size={20} color="#fff" />
+          </TouchableOpacity>
           <Image
             source={require('@/assets/images/aino-logo.png')}
             style={s.heroLogo}
@@ -567,6 +572,12 @@ const s = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 40,
     paddingHorizontal: 24,
+  },
+  heroBack: {
+    position: 'absolute', top: 16, left: 16,
+    width: 36, height: 36, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center', justifyContent: 'center',
   },
   heroLogo: { width: 80, height: 80, marginBottom: 16 },
   heroRole: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.65)', letterSpacing: 1.5, marginBottom: 6 },
