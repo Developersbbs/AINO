@@ -302,9 +302,9 @@ export default function OwnerDashboard() {
                   </View>
                 )}
               </TouchableOpacity>
-              <View style={s.avatar}>
+              <TouchableOpacity style={s.avatar} onPress={() => router.push('/(owner)/profile')} activeOpacity={0.8}>
                 <Text style={s.avatarText}>{getInitials(user?.name ?? 'O')}</Text>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
         </View>

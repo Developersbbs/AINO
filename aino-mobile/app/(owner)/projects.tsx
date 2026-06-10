@@ -31,6 +31,17 @@ interface Project {
 
 type UnitStatus = 'Available' | 'Booked' | 'Sold';
 
+interface UnitBooking {
+  id: string;
+  customer_name: string;
+  customer_phone: string;
+  booking_date: string;
+  confirmed_at: string | null;
+  sold_at: string | null;
+  status: string;
+  agent: { name: string; phone: string };
+}
+
 interface Unit {
   id: string;
   unit_number: string;
@@ -40,6 +51,7 @@ interface Unit {
   road_width: number | null;
   status: UnitStatus;
   attributes: Record<string, unknown> | null;
+  bookings: UnitBooking[];
 }
 
 interface ConfigAttr {
@@ -171,8 +183,9 @@ function StatItem({ value, label }: Readonly<{ value: string; label: string }>) 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function OwnerProjects() {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [view, setView]             = useState<'list' | 'detail'>('list');
+  const [selectedId,   setSelectedId]   = useState<string | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
+  const [view, setView]                 = useState<'list' | 'detail' | 'unit'>('list');
 
   const projectsQuery = useQuery<Project[]>({
     queryKey: ['owner-projects'],
@@ -182,10 +195,131 @@ export default function OwnerProjects() {
   const detailQuery = useQuery<ProjectDetail>({
     queryKey: ['owner-project', selectedId],
     queryFn: () => api.get(`/owner/projects/${selectedId}`).then((r) => r.data.data),
-    enabled: view === 'detail' && !!selectedId,
+    enabled: (view === 'detail' || view === 'unit') && !!selectedId,
   });
 
   const openDetail = (id: string) => { setSelectedId(id); setView('detail'); };
+  const openUnit   = (unit: Unit) => { setSelectedUnit(unit); setView('unit'); };
+
+  // ── Unit Detail View ─────────────────────────────────────────────────────────
+
+  if (view === 'unit' && selectedUnit) {
+    const unit    = selectedUnit;
+    const booking = unit.bookings?.[0] ?? null;
+    const color   = STATUS_COLOR[unit.status];
+    const perSqft = unit.sq_ft > 0 ? Math.round(unit.price / unit.sq_ft) : 0;
+    const project = detailQuery.data;
+
+    const amenityKeys = Object.keys(AMENITY_MAP).filter((k) => unit.attributes?.[k]);
+    const unitAmenities = amenityKeys.map((k) => ({ key: k, ...AMENITY_MAP[k] }));
+
+    return (
+      <SafeAreaView style={s.safe} edges={['top']}>
+        <View style={s.pageHeader}>
+          <TouchableOpacity onPress={() => setView('detail')} style={s.backBtn}>
+            <Feather name="arrow-left" size={20} color="#0a0f1c" />
+          </TouchableOpacity>
+          <Text style={s.pageTitle} numberOfLines={1}>Plot #{unit.unit_number}</Text>
+          <View style={[s.statusPill, { backgroundColor: color + '20' }]}>
+            <View style={[s.dot, { backgroundColor: color }]} />
+            <Text style={[s.statusPillText, { color }]}>{unit.status}</Text>
+          </View>
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 48 }}>
+
+          {/* Hero */}
+          <View style={[s.unitDetailHero, { borderLeftColor: color }]}>
+            <Text style={s.unitDetailProject}>{project?.project_name ?? ''}</Text>
+            <Text style={s.unitDetailPrice}>{formatINR(unit.price)}</Text>
+            <View style={s.unitSpecRow}>
+              <View style={s.unitSpec}>
+                <Feather name="maximize" size={13} color="rgba(255,255,255,0.7)" />
+                <Text style={s.unitDetailSpecText}>{unit.sq_ft.toLocaleString()} sqft</Text>
+              </View>
+              {perSqft > 0 && (
+                <View style={s.unitSpec}>
+                  <Feather name="tag" size={13} color="rgba(255,255,255,0.7)" />
+                  <Text style={s.unitDetailSpecText}>₹{perSqft.toLocaleString()}/sqft</Text>
+                </View>
+              )}
+              {!!unit.facing && (
+                <View style={s.unitSpec}>
+                  <Feather name="compass" size={13} color="rgba(255,255,255,0.7)" />
+                  <Text style={s.unitDetailSpecText}>{unit.facing} facing</Text>
+                </View>
+              )}
+              {!!unit.road_width && (
+                <View style={s.unitSpec}>
+                  <Feather name="navigation" size={13} color="rgba(255,255,255,0.7)" />
+                  <Text style={s.unitDetailSpecText}>{unit.road_width} ft road</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Amenities */}
+          {unitAmenities.length > 0 && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Amenities</Text>
+              <View style={s.amenityGrid}>
+                {unitAmenities.map((a) => (
+                  <View key={a.key} style={s.amenityCard}>
+                    <View style={[s.amenityIcon, { backgroundColor: a.color + '1a' }]}>
+                      <Feather name={a.icon} size={22} color={a.color} />
+                    </View>
+                    <Text style={s.amenityLabel}>{a.label}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Booking Info */}
+          {booking && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>
+                {unit.status === 'Sold' ? 'Sale Details' : 'Booking Details'}
+              </Text>
+              <View style={s.detailInfoBlock}>
+                {([
+                  { icon: 'user'       as const, label: 'Customer',  value: booking.customer_name },
+                  { icon: 'phone'      as const, label: 'Phone',     value: booking.customer_phone },
+                  { icon: 'briefcase' as const, label: 'Agent',     value: booking.agent.name },
+                  { icon: 'phone'      as const, label: 'Agent Ph.', value: booking.agent.phone },
+                  { icon: 'calendar'   as const, label: 'Booked On', value: new Date(booking.booking_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) },
+                  ...(booking.confirmed_at ? [{ icon: 'check' as const, label: 'Confirmed', value: new Date(booking.confirmed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) }] : []),
+                  ...(booking.sold_at    ? [{ icon: 'award' as const, label: 'Sold On',   value: new Date(booking.sold_at).toLocaleDateString('en-IN',    { day: 'numeric', month: 'long', year: 'numeric' }) }] : []),
+                ]).map(({ icon, label, value }) => (
+                  <View key={label} style={s.detailInfoRow}>
+                    <View style={s.detailInfoIcon}>
+                      <Feather name={icon} size={14} color="#64748b" />
+                    </View>
+                    <Text style={s.detailInfoLabel}>{label}</Text>
+                    <Text style={s.detailInfoValue}>{value}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Available notice */}
+          {unit.status === 'Available' && (
+            <View style={s.section}>
+              <View style={s.availableNotice}>
+                <Feather name="check-circle" size={22} color="#16a34a" />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.availableNoticeTitle}>Available for Booking</Text>
+                  <Text style={s.availableNoticeSub}>This plot has not been booked yet.</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   // ── Detail View ──────────────────────────────────────────────────────────────
 
@@ -222,7 +356,36 @@ export default function OwnerProjects() {
         )}
 
         {project && (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 48 }}>
+          <FlatList
+            data={units}
+            keyExtractor={(u) => u.id}
+            numColumns={2}
+            columnWrapperStyle={s.colWrap}
+            contentContainerStyle={s.unitListPad}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={s.emptyUnits}>
+                <Feather name="grid" size={40} color="#cbd5e1" />
+                <Text style={s.emptyUnitsText}>No plots added yet</Text>
+              </View>
+            }
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[s.unitCard, { borderColor: STATUS_COLOR[item.status], backgroundColor: STATUS_BG[item.status] }]}
+                onPress={() => openUnit(item)}
+                activeOpacity={0.8}
+              >
+                <View style={s.unitCardTop}>
+                  <Text style={s.unitNumber}>#{item.unit_number}</Text>
+                  <View style={[s.statusDot, { backgroundColor: STATUS_COLOR[item.status] }]} />
+                </View>
+                <Text style={s.unitPrice}>{formatINR(item.price)}</Text>
+                <Text style={s.unitSqft}>{item.sq_ft.toLocaleString()} sqft</Text>
+                {!!item.facing && <Text style={s.unitFacing}>{item.facing}</Text>}
+              </TouchableOpacity>
+            )}
+            ListHeaderComponent={
+              <>
 
             {/* ── Hero ── */}
             <View style={s.hero}>
@@ -308,52 +471,24 @@ export default function OwnerProjects() {
               </View>
             )}
 
-            {/* ── Units ── */}
-            <View style={s.section}>
-              <View style={s.unitsSectionHeader}>
-                <Text style={s.sectionTitle}>Plots ({units.length})</Text>
-                <View style={s.unitsLegend}>
-                  {([
-                    { label: 'Avail', count: stats.available, color: STATUS_COLOR.Available },
-                    { label: 'Booked', count: stats.booked, color: STATUS_COLOR.Booked },
-                    { label: 'Sold', count: stats.sold, color: '#94a3b8' },
-                  ] as const).map(({ label, count, color }) => (
-                    <View key={label} style={s.legendItem}>
-                      <View style={[s.dot, { backgroundColor: color }]} />
-                      <Text style={[s.legendText, { color }]}>{count} {label}</Text>
-                    </View>
-                  ))}
+            {/* ── Status bar + hint ── */}
+            <View style={s.statusBar}>
+              {([
+                { label: 'Available', count: stats.available, color: STATUS_COLOR.Available },
+                { label: 'Booked',    count: stats.booked,    color: STATUS_COLOR.Booked },
+                { label: 'Sold',      count: stats.sold,      color: STATUS_COLOR.Sold },
+              ] as const).map(({ label, count, color }) => (
+                <View key={label} style={s.statusBarItem}>
+                  <View style={[s.dot, { backgroundColor: color }]} />
+                  <Text style={s.statusBarLabel}>{label}</Text>
+                  <Text style={[s.statusBarCount, { color }]}>{count}</Text>
                 </View>
-              </View>
-
-              {units.length === 0 ? (
-                <View style={s.emptyUnits}>
-                  <Text style={s.emptyUnitsText}>No plots added yet</Text>
-                </View>
-              ) : (
-                <View style={s.unitGrid}>
-                  {units.map((unit) => (
-                    <View
-                      key={unit.id}
-                      style={[s.unitCard, { borderColor: STATUS_COLOR[unit.status], backgroundColor: STATUS_BG[unit.status] }]}
-                    >
-                      <View style={s.unitTop}>
-                        <Text style={s.unitNumber}>#{unit.unit_number}</Text>
-                        <View style={[s.dot, { backgroundColor: STATUS_COLOR[unit.status] }]} />
-                      </View>
-                      <Text style={s.unitPrice}>{formatINR(unit.price)}</Text>
-                      <Text style={s.unitSqft}>{unit.sq_ft.toLocaleString()} sqft</Text>
-                      {!!unit.facing && <Text style={s.unitFacing}>{unit.facing}</Text>}
-                      <View style={[s.statusPill, { backgroundColor: STATUS_COLOR[unit.status] + '22' }]}>
-                        <Text style={[s.statusPillText, { color: STATUS_COLOR[unit.status] }]}>{unit.status}</Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
+              ))}
             </View>
-
-          </ScrollView>
+            <Text style={s.hintText}>Tap to view details</Text>
+            </>
+            }
+          />
         )}
       </SafeAreaView>
     );
@@ -552,22 +687,63 @@ const s = StyleSheet.create({
   docName: { flex: 1, fontSize: 14, fontWeight: '600', color: '#0a0f1c' },
   docView: { fontSize: 13, fontWeight: '700', color: '#ef4444' },
 
-  // Units
-  unitsSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  unitsLegend:        { flexDirection: 'row', gap: 10 },
-  legendItem:         { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  legendText:         { fontSize: 11, fontWeight: '700' },
-  emptyUnits:         { alignItems: 'center', paddingVertical: 32 },
-  emptyUnitsText:     { fontSize: 14, color: '#94a3b8' },
-  unitGrid:           { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  // Units grid
+  unitListPad:    { paddingHorizontal: 12, paddingBottom: 40, paddingTop: 12 },
+  colWrap:        { gap: 10, marginBottom: 10, paddingHorizontal: 0 },
+  emptyUnits:     { alignItems: 'center', paddingVertical: 40, flex: 1 },
+  emptyUnitsText: { fontSize: 14, color: '#94a3b8', marginTop: 10 },
   unitCard: {
-    width: '47.5%', borderRadius: 16, borderWidth: 1.5, padding: 12,
+    flex: 1, borderRadius: 16, borderWidth: 1.5,
+    padding: 12, backgroundColor: '#fff',
   },
-  unitTop:        { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  unitNumber:     { fontSize: 14, fontWeight: '800', color: '#0a0f1c' },
-  unitPrice:      { fontSize: 13, fontWeight: '700', color: '#0a0f1c', marginBottom: 2 },
-  unitSqft:       { fontSize: 11, color: '#94a3b8', marginBottom: 2 },
-  unitFacing:     { fontSize: 11, color: '#94a3b8', marginBottom: 6 },
-  statusPill:     { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  statusPillText: { fontSize: 10, fontWeight: '700' },
+  unitCardTop:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  unitNumber:   { fontSize: 13, fontWeight: '800', color: '#0a0f1c' },
+  statusDot:    { width: 8, height: 8, borderRadius: 4 },
+  unitPrice:    { fontSize: 14, fontWeight: '900', color: NAVY, marginBottom: 4 },
+  unitSqft:     { fontSize: 11, color: '#64748b', fontWeight: '500', marginBottom: 2 },
+  unitFacing:   { fontSize: 11, color: '#94a3b8', fontWeight: '500' },
+
+  // Status bar (above grid)
+  statusBar:      { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#fff', marginTop: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#e8edf5' },
+  statusBarItem:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statusBarLabel: { fontSize: 12, color: '#64748b', fontWeight: '600' },
+  statusBarCount: { fontSize: 13, fontWeight: '800' },
+  hintText:       { fontSize: 11, color: '#94a3b8', textAlign: 'center', paddingVertical: 8 },
+
+  unitSpecRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
+  unitSpec:       { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statusPill:     { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  statusPillText: { fontSize: 11, fontWeight: '700' },
+
+  // Unit detail view
+  unitDetailHero: {
+    backgroundColor: NAVY,
+    borderLeftWidth: 6,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 28,
+  },
+  unitDetailProject:  { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.55)', letterSpacing: 0.5, marginBottom: 6 },
+  unitDetailPrice:    { fontSize: 32, fontWeight: '900', color: GOLD, marginBottom: 14 },
+  unitDetailSpecText: { fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
+
+  detailInfoBlock: {
+    backgroundColor: '#f8fafc', borderRadius: 16, padding: 16, gap: 14,
+  },
+  detailInfoRow:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  detailInfoIcon:  {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: '#e2e8f0',
+  },
+  detailInfoLabel: { fontSize: 12, color: '#94a3b8', fontWeight: '600', width: 72 },
+  detailInfoValue: { fontSize: 14, color: '#0a0f1c', fontWeight: '700', flex: 1 },
+
+  availableNotice: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: '#f0fdf4', borderRadius: 16,
+    padding: 16, borderWidth: 1, borderColor: '#bbf7d0',
+  },
+  availableNoticeTitle: { fontSize: 14, fontWeight: '800', color: '#15803d', marginBottom: 2 },
+  availableNoticeSub:   { fontSize: 12, color: '#4ade80' },
 });
