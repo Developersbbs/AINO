@@ -40,9 +40,9 @@
           "image": "./assets/images/aino-logo.png",
           "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#1e3c6e",
+          "backgroundColor": "#ffffff",
           "dark": {
-            "backgroundColor": "#1e3c6e"
+            "backgroundColor": "#ffffff"
           }
         }
       ],

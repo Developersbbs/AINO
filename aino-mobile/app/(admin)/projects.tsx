@@ -22,6 +22,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/src/api/client';
 import BulkUploadModal from '@/components/BulkUploadModal';
 import BulkUnitsModal from '@/components/BulkUnitsModal';
+import ManageAmenitiesModal, { type AmenityDef } from '@/components/ManageAmenitiesModal';
 import * as DocumentPicker from 'expo-document-picker';
 import { shadow } from '@/src/lib/shadow';
 
@@ -67,6 +68,7 @@ interface AddUnitForm {
   compound_wall: boolean; park: boolean; clubhouse: boolean; security: boolean;
   landmark: string; nearby_schools: string; nearby_hospitals: string;
   nearby_transport: string; distance_main_road: string; booking_notes: string;
+  customAmenities: Record<string, boolean>;
 }
 
 type ScreenView = 'list' | 'detail' | 'create' | 'add-unit' | 'edit-project' | 'edit-unit' | 'unit-detail';
@@ -100,6 +102,7 @@ const INITIAL_UNIT_FORM: AddUnitForm = {
   compound_wall: false, park: false, clubhouse: false, security: false,
   landmark: '', nearby_schools: '', nearby_hospitals: '',
   nearby_transport: '', distance_main_road: '', booking_notes: '',
+  customAmenities: {},
 };
 
 const STATUS_COLOR: Record<UnitStatus, string> = {
@@ -126,15 +129,19 @@ const AMENITY_MAP: Record<string, { label: string; icon: React.ComponentProps<ty
 const formatINR = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
-function deriveAmenities(units: Unit[]) {
+function deriveAmenities(units: Unit[], extraDefs: AmenityDef[] = []) {
+  const fullMap: Record<string, { label: string; icon: React.ComponentProps<typeof Feather>['name']; color: string }> = { ...AMENITY_MAP };
+  for (const d of extraDefs) {
+    if (!fullMap[d.key]) fullMap[d.key] = { label: d.label, icon: d.icon as React.ComponentProps<typeof Feather>['name'], color: d.color };
+  }
   const found = new Set<string>();
   for (const u of units) {
     const a = u.attributes ?? {};
-    for (const key of Object.keys(AMENITY_MAP)) {
+    for (const key of Object.keys(fullMap)) {
       if (a[key] === true) found.add(key);
     }
   }
-  return Array.from(found).map((k) => AMENITY_MAP[k]);
+  return Array.from(found).map((k) => fullMap[k]).filter(Boolean);
 }
 
 function deriveStats(units: Unit[]) {
@@ -307,6 +314,9 @@ function buildUnitAttributes(f: AddUnitForm): Record<string, unknown> | undefine
   if (f.nearby_transport) a.nearbyTransport = f.nearby_transport;
   if (f.distance_main_road) a.distanceFromMainRoad = f.distance_main_road;
   if (f.booking_notes) a.bookingNotes = f.booking_notes;
+  for (const [key, val] of Object.entries(f.customAmenities)) {
+    if (val) a[key] = true;
+  }
   return Object.keys(a).length > 0 ? a : undefined;
 }
 
@@ -329,6 +339,7 @@ export default function AdminProjectsScreen() {
   const [editUnit, setEditUnit] = useState<Unit | null>(null);
   const [editUnitForm, setEditUnitForm] = useState<AddUnitForm>(INITIAL_UNIT_FORM);
   const [editUnitSections, setEditUnitSections] = useState<Set<string>>(new Set(['required']));
+  const [showAmenityManager, setShowAmenityManager] = useState(false);
 
   // Create form
   const [form, setForm] = useState<CreateForm>({
@@ -434,6 +445,12 @@ export default function AdminProjectsScreen() {
     queryFn: () => api.get(`/projects/${selectedId}`).then((r) => r.data.data),
     enabled: (view === 'detail' || view === 'add-unit') && !!selectedId,
   });
+
+  const amenitiesQuery = useQuery<AmenityDef[]>({
+    queryKey: ['admin-amenities'],
+    queryFn: () => api.get('/admin/amenities').then((r) => r.data.data),
+  });
+  const customAmenitiesDefs = (amenitiesQuery.data ?? []).filter((a) => !a.isBuiltIn);
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -713,6 +730,9 @@ export default function AdminProjectsScreen() {
       nearby_transport: String(a.nearbyTransport ?? ''),
       distance_main_road: String(a.distanceFromMainRoad ?? ''),
       booking_notes: String(a.bookingNotes ?? ''),
+      customAmenities: Object.fromEntries(
+        customAmenitiesDefs.map((d) => [d.key, Boolean(a[d.key])]),
+      ),
     });
     setEditUnitSections(new Set(['required']));
     setEditUnit(unit);
@@ -726,8 +746,12 @@ export default function AdminProjectsScreen() {
     const pr = Number(unitForm.price);
     return sq > 0 && pr > 0 ? Math.round(pr / sq) : null;
   })();
-  const amenityCount = AMENITIES.filter((a) => unitForm[a.key] as boolean).length;
-  const editAmenityCount = AMENITIES.filter((a) => editUnitForm[a.key] as boolean).length;
+  const amenityCount =
+    AMENITIES.filter((a) => unitForm[a.key] as boolean).length +
+    customAmenitiesDefs.filter((d) => unitForm.customAmenities[d.key]).length;
+  const editAmenityCount =
+    AMENITIES.filter((a) => editUnitForm[a.key] as boolean).length +
+    customAmenitiesDefs.filter((d) => editUnitForm.customAmenities[d.key]).length;
   const editCalcRate = (() => {
     const sq = Number(editUnitForm.sq_ft); const pr = Number(editUnitForm.price);
     return sq > 0 && pr > 0 ? Math.round(pr / sq) : 0;
@@ -1003,6 +1027,20 @@ export default function AdminProjectsScreen() {
                       onToggle={() => setEditUnitField(key, !editUnitForm[key])}
                     />
                   ))}
+                  {customAmenitiesDefs.map(({ key, label, icon }) => (
+                    <AmenityChip
+                      key={key}
+                      label={label}
+                      icon={icon as React.ComponentProps<typeof Feather>['name']}
+                      value={!!editUnitForm.customAmenities[key]}
+                      onToggle={() =>
+                        setEditUnitField('customAmenities', {
+                          ...editUnitForm.customAmenities,
+                          [key]: !editUnitForm.customAmenities[key],
+                        })
+                      }
+                    />
+                  ))}
                 </View>
               </View>
             )}
@@ -1187,6 +1225,20 @@ export default function AdminProjectsScreen() {
                       icon={icon}
                       value={unitForm[key] as boolean}
                       onToggle={() => setUnitField(key, !unitForm[key])}
+                    />
+                  ))}
+                  {customAmenitiesDefs.map(({ key, label, icon }) => (
+                    <AmenityChip
+                      key={key}
+                      label={label}
+                      icon={icon as React.ComponentProps<typeof Feather>['name']}
+                      value={!!unitForm.customAmenities[key]}
+                      onToggle={() =>
+                        setUnitField('customAmenities', {
+                          ...unitForm.customAmenities,
+                          [key]: !unitForm.customAmenities[key],
+                        })
+                      }
                     />
                   ))}
                 </View>
@@ -1470,7 +1522,7 @@ export default function AdminProjectsScreen() {
     const project = detailQuery.data;
     const units = project?.units ?? [];
     const heroStats = deriveStats(units);
-    const amenities = deriveAmenities(units);
+    const amenities = deriveAmenities(units, customAmenitiesDefs);
     const tags = project ? deriveTags(project) : [];
     const cfg = project?.config_attributes ?? null;
     const approval = getApprovalLabel(cfg);
@@ -1644,6 +1696,9 @@ export default function AdminProjectsScreen() {
           <TouchableOpacity style={s.iconBtn} onPress={() => setShowBulkUnits(true)} activeOpacity={0.7}>
             <Feather name="upload" size={17} color={GREEN} />
           </TouchableOpacity>
+          <TouchableOpacity style={s.iconBtn} onPress={() => setShowAmenityManager(true)} activeOpacity={0.7}>
+            <Feather name="sliders" size={17} color={GREEN} />
+          </TouchableOpacity>
           <TouchableOpacity style={s.addUnitBtn} onPress={() => setView('add-unit')} activeOpacity={0.7}>
             <Feather name="plus" size={16} color={GREEN} />
             <Text style={s.addUnitBtnText}>Add Plot</Text>
@@ -1789,6 +1844,11 @@ export default function AdminProjectsScreen() {
           projectId={selectedId ?? ''}
           projectName={project?.project_name ?? ''}
           onClose={() => setShowBulkUnits(false)}
+        />
+
+        <ManageAmenitiesModal
+          visible={showAmenityManager}
+          onClose={() => setShowAmenityManager(false)}
         />
 
         {/* Status change modal */}

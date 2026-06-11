@@ -24,6 +24,7 @@ model User {
   deleted_at      DateTime?
   documents       Json?
   commission_rate Float?
+  commission_type String?
   bookings        Booking[]
   commissions     Commission[]
   leads_handled   Lead[]
@@ -79,6 +80,7 @@ model Project {
   documents         Json?
   booking_amount    Float?
   commission_rate   Float?
+  commission_type   String?
   leads             Lead[]
   owner             User?    @relation(fields: [owner_id], references: [id])
   units             Unit[]

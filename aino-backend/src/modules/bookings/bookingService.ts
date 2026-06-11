@@ -2,6 +2,7 @@ import prisma from '../../config/database';
 import { UnitStatus, CommissionStatus } from '@prisma/client';
 import { AppError } from '../../middlewares/errorHandler';
 import { createNotification } from '../notifications/notificationService';
+import { getGlobalRate, getGlobalType } from '../admin/commissionConfigService';
 
 export const createBooking = async (
   unitId: string,
@@ -10,10 +11,14 @@ export const createBooking = async (
   customerPhone: string,
   shareToken?: string,
 ) => {
+  const [globalRate, globalType] = await Promise.all([getGlobalRate(), getGlobalType()]);
+
   const { booking, unit } = await prisma.$transaction(async (tx) => {
     const unit = await tx.unit.findUnique({
       where: { id: unitId },
-      include: { project: { select: { project_name: true, owner_id: true } } },
+      include: {
+        project: { select: { project_name: true, owner_id: true, commission_rate: true, commission_type: true } },
+      },
     });
 
     if (!unit) throw new AppError('NOT_FOUND', 'Unit not found');
@@ -21,6 +26,18 @@ export const createBooking = async (
 
     const existing = await tx.booking.findFirst({ where: { unit_id: unitId } });
     if (existing) throw new AppError('ALREADY_BOOKED', 'Unit has already been booked');
+
+    const agentOverride = await tx.user.findUnique({
+      where: { id: agentId },
+      select: { commission_rate: true, commission_type: true },
+    });
+
+    // Priority: agent override → project override → global
+    const effectiveRate = agentOverride?.commission_rate ?? unit.project.commission_rate ?? globalRate;
+    const effectiveType = agentOverride?.commission_type ?? unit.project.commission_type ?? globalType;
+    const commissionAmount = effectiveType === 'fixed_amount'
+      ? effectiveRate
+      : unit.price * (effectiveRate / 100);
 
     const booking = await tx.booking.create({
       data: { unit_id: unitId, agent_id: agentId, customer_name: customerName, customer_phone: customerPhone },
@@ -35,7 +52,7 @@ export const createBooking = async (
       data: {
         unit_id: unitId,
         agent_id: agentId,
-        amount: unit.price * 0.02,
+        amount: commissionAmount,
         status: CommissionStatus.Unpaid,
       },
     });

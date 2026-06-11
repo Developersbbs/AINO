@@ -4,6 +4,7 @@ import { roles } from '../../middlewares/roles';
 import * as adminController from './adminController';
 import * as commissionController from './commissionConfigController';
 import * as auditLogController from './auditLogController';
+import * as amenityController from './amenityController';
 
 const router = Router();
 
@@ -27,6 +28,11 @@ router.get('/recycle-bin',                       adminController.getRecycleBin);
 router.post('/recycle-bin/:id/restore',          adminController.restoreUser);
 router.delete('/recycle-bin/:id',                adminController.permanentlyDeleteUser);
 router.get('/audit-log',                         auditLogController.listAuditLogs);
+
+// Amenities
+router.get('/amenities',          amenityController.listAmenities);
+router.post('/amenities',         amenityController.addAmenity);
+router.delete('/amenities/:key',  amenityController.removeAmenity);
 
 // Commission config
 router.get('/commission-config',                        commissionController.getConfig);
