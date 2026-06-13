@@ -125,8 +125,13 @@ export const verifyOtpCode = async (phone: string, otp: string): Promise<boolean
   return true;
 };
 
+const USER_AUTH_SELECT = {
+  id: true, name: true, phone: true, role: true,
+  is_approved: true, deleted_at: true,
+} as const;
+
 export const findUserByPhone = async (phone: string) => {
-  return prisma.user.findUnique({ where: { phone } });
+  return prisma.user.findUnique({ where: { phone }, select: USER_AUTH_SELECT });
 };
 
 export const refreshAccessToken = async (refreshToken: string): Promise<string> => {
@@ -138,8 +143,12 @@ export const refreshAccessToken = async (refreshToken: string): Promise<string> 
   const valid = await bcrypt.compare(refreshToken, storedHash);
   if (!valid) throw new Error('Invalid refresh token');
 
-  const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+  const user = await prisma.user.findUnique({
+    where: { id: decoded.id },
+    select: { id: true, role: true, deleted_at: true },
+  });
   if (!user) throw new Error('User not found');
+  if (user.deleted_at) throw new Error('Account deactivated');
 
   return jwt.sign({ id: user.id, role: user.role }, ACCESS_SECRET, { expiresIn: '15m' });
 };

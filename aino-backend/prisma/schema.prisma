@@ -19,11 +19,11 @@ model User {
   password        String?
   role            UserRole
   is_approved     Boolean        @default(false)
-  is_deactivated  Boolean        @default(false)
   created_at      DateTime       @default(now())
-  deleted_at      DateTime?
   documents       Json?
   commission_rate Float?
+  deleted_at      DateTime?
+  is_deactivated  Boolean        @default(false)
   commission_type String?
   bookings        Booking[]
   commissions     Commission[]

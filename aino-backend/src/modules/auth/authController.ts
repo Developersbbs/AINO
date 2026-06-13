@@ -55,6 +55,10 @@ export const verifyOtp = async (req: Request, res: Response) => {
       });
     }
 
+    if (user.deleted_at) {
+      return res.status(403).json({ message: 'This account has been deactivated. Contact admin to restore it.' });
+    }
+
     const { accessToken, refreshToken } = await authService.generateTokens(user.id, user.role);
 
     return res.status(200).json({
@@ -334,7 +338,7 @@ export const register = async (req: Request, res: Response) => {
         name,
         phone,
         email: email ?? null,
-        role: role as UserRole,
+        role,
         is_approved: false,
       },
     });
